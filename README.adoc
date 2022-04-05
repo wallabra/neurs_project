@@ -1,0 +1,14 @@
+Neurs Project
+-----------
+:author: Gustavo Ramos Rehermann
+:toc:
+:numbered:
+
+The Neurs Project seeks to provide _minimalistic_
+neural network and machine learning solutions, as well
+as a few interesting applications for those.
+
+Planned applications include:
+
+ . *styliso*: an image _style isolation_ program
+ . *cnmc*: the _Convolutional Neural Markov Chain_, an elaborate neural approach to sentence-generating Markov chains

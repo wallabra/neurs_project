@@ -1,0 +1,10 @@
+neurs
+--------
+:author: Gustavo Ramos Rehermann
+:toc:
+:numbered:
+
+A library that provides very simplified neural network functionality
+to Rust.
+
+All neural networks in this library are feed-forward and dense connected.

@@ -1,10 +1,10 @@
-cmnc_console
+cnmc_console
 -----------
 :author: Gustavo Ramos Rehermann
 :toc:
 :numbered:
 
-A demo program which demonstrates _cmnc_'s sentence generation.
+A demo program which demonstrates *cnmc*'s sentence generation.
 
 It provides a console from which you may give prompts to an AI, which it will
 try to give meaningful... "responses"... to.

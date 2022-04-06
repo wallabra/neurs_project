@@ -3,8 +3,8 @@ members = [
     # Main libraries
     "neurs",            # core
     "styliso",          # image style distinction
-    "cmnc",             # sentence generator
+    "cnmc",             # sentence generator
 
     # Demo programs
-    "cmnc_console"      # cmnc demo (conversation console)
+    "cnmc_console"      # cnmc demo (conversation console)
 ]

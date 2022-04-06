@@ -1,4 +1,4 @@
-cmnc
+cnmc
 -----------
 :author: Gustavo Ramos Rehermann
 :toc:

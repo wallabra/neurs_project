@@ -1,5 +1,5 @@
 [package]
-name = "cmnc_console"
+name = "cnmc_console"
 version = "0.1.0"
 edition = "2021"
 

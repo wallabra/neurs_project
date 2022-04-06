@@ -4,11 +4,13 @@ Neurs Project
 :toc:
 :numbered:
 
-The Neurs Project seeks to provide _minimalistic_
-neural network and machine learning solutions, as well
-as a few interesting applications for those.
+The Neurs Project seeks to provide _minimalistic_ neural network and machine
+learning solutions, as well as a few interesting applications for those.
 
-Planned applications include:
+## Planned Applications
 
  . *styliso*: an image _style isolation_ program
- . *cnmc*: the _Convolutional Neural Markov Chain_, an elaborate neural approach to sentence-generating Markov chains
+ . *cnmc*: the _Convolutional Neural Markov Chain_, a neural approach to
+   sentence-generating Markov chains
+
+For more info, please see the READMEs in their corresponding folders.

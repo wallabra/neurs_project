@@ -1,0 +1,11 @@
+styliso
+-----------
+:author: Gustavo Ramos Rehermann
+:toc:
+:numbered:
+
+A program which tries to distinguish between the 'styles' of separate sets of
+images, and which allows one to simulate and even blend them through the magic
+of autoencoders.
+
+This program is a part of the Neurs Project.

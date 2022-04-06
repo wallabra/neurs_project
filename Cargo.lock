@@ -42,6 +42,9 @@ dependencies = [
 [[package]]
 name = "cnmc_console"
 version = "0.1.0"
+dependencies = [
+ "cnmc",
+]
 
 [[package]]
 name = "color_space"

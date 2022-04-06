@@ -1,8 +1,8 @@
-use super::data::ImageData;
-/**
+/*!
  * A module concerned with implementing PNG saving and
  * loading for [image::data::ImageData].
  */
+use super::data::ImageData;
 use std::io::{Read, Write};
 
 use color_space::{FromRgb, Hsl, Rgb, ToRgb};

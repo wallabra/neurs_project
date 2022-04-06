@@ -1,8 +1,8 @@
-use super::data::ImageData;
-/**
+/*!
  * Labeling for images to be autoencoded, which is
  * very particular to this project.
  */
+use super::data::ImageData;
 use neurs::train::label::TrainingLabel;
 
 /// An image which has been given a label.

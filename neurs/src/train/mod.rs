@@ -1,4 +1,4 @@
-/**
+/*!
  * Neural network training facilities.
  *
  * Provides an interface for training strategies and rules,

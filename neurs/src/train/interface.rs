@@ -1,4 +1,4 @@
-/**
+/*!
  * An interface that any neural network training method should support.
  *
  * A training method is actually an implementation of [TrainingStrategy].

@@ -1,4 +1,4 @@
-/**
+/*!
  * Organizes image related code, especially
  * concerning PNG files and the implementation
  * of autoencoder traits for image data.

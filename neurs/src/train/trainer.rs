@@ -1,4 +1,4 @@
-/**
+/*!
  * Code for the Trainer, the orchestration structore of neural network
  * training.
  */

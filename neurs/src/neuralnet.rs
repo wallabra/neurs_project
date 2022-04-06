@@ -1,5 +1,4 @@
-use super::activations::relu;
-/**
+/*!
  * A basic neural network structure.
  *
  * It is quite simplistic, only supporting
@@ -7,6 +6,7 @@ use super::activations::relu;
  * It also provides a default activation function,
  * the ReLu, although any can be supplied.
  */
+use super::activations::relu;
 use rand::prelude::*;
 
 type NNActivation = fn(f32) -> f32;

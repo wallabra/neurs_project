@@ -1,13 +1,11 @@
-use crate::neuralnet::NeuralLayer;
-
-/**
+/*!
  * An amorphous method of training a neural network.
  *
- * The aforementioend method works by considering an example from the
- * training set, and testing the neural network on it multiple times, slightly
- * jittering the weights and biases of the network each time; after a certain
- * desired number of attempts, the current network weights are adjusted towards
- * the best performing jitterings.
+ * The method works by considering an example from the training set, and
+ * testing the neural network on it multiple times, slightly 'jittering'(!) the
+ * weights and biases of the network each time; after a certain desired number
+ * of attempts, the current network weights are adjusted towards the best
+ * performing variations.
  *
  * 'Amorphous' here means that the method itself could, in its general
  * form, apply to any set of parameters which can be measured with fitness.
@@ -15,6 +13,7 @@ use crate::neuralnet::NeuralLayer;
  * networks. However, the implementation provided here is specific to neural
  * networks, for the sake of performance and code simplicity.
  */
+use crate::neuralnet::NeuralLayer;
 use super::super::neuralnet::SimpleNeuralNetwork;
 use super::interface::{TrainingFrame, TrainingStrategy};
 use rand::thread_rng;

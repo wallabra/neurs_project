@@ -1,4 +1,4 @@
-/**
+/*!
  * The internal image data holder.
  */
 use neurs::interface as autoencoder;

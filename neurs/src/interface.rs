@@ -1,4 +1,4 @@
-/**
+/*!
  * A generic interface for autoencoder behaviour.
  *
  * This is actually implemented by the [neuralnet] module.

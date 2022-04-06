@@ -1,4 +1,4 @@
-/**
+/*!
  * Label-based supervised learning frame for the TrainingFrame interface.
  */
 use super::interface;

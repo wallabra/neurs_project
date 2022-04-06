@@ -1,4 +1,4 @@
-/**
+/*!
  * _styliso_ is an experiment which seeks to employ machine learning to
  * distinguish the 'style' between different sets of multiple images.
  * '_styliso_' is short for '_sty_le _iso_lator'.

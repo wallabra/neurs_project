@@ -1,3 +1,6 @@
+//! Functions which are meant to be used as activation functions by neural
+//! networks' layers. See [NeuralLayer].
+
 /// The ReLu activation function; returns x, unless it is negative, in which
 /// case 0 is returned instead.
 pub fn relu(x: f32) -> f32 {

@@ -8,4 +8,4 @@ A sentence generation library, akin to a Markov chain, which vectorizes words
 into fixed-length vectors, and then uses neural networks and a Markov chain to
 string them together.
 
-This program is a part of the Neurs Project.
+This library is a part of the Neurs Project.

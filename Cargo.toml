@@ -1,6 +1,10 @@
 [workspace]
 members = [
-    "neurs",
-    "styliso",
-    "cmnc"
+    # Main libraries
+    "neurs",            # core
+    "styliso",          # image style distinction
+    "cmnc",             # sentence generator
+
+    # Demo programs
+    "cmnc_console"      # cmnc demo (conversation console)
 ]

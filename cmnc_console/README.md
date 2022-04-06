@@ -1,0 +1,15 @@
+cmnc_console
+-----------
+:author: Gustavo Ramos Rehermann
+:toc:
+:numbered:
+
+A demo program which demonstrates _cmnc_'s sentence generation.
+
+It provides a console from which you may give prompts to an AI, which it will
+try to give meaningful... "responses"... to.
+
+It is possible to load text conversation logs to train the AI, as well as save
+and load the state of its 'brain'.
+
+This program is a part of the Neurs Project.

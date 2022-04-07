@@ -4,7 +4,7 @@ neurs
 :toc:
 :numbered:
 
-A library that provides very simplified neural network functionality
-to Rust. The core part of the Neurs Project.
+A library that provides very simplified neural network functionality.
+The core part of the Neurs Project.
 
 All neural networks in this library are feed-forward and dense connected.

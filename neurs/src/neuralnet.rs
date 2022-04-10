@@ -113,7 +113,7 @@ impl SimpleNeuralNetwork {
      * neurons proper.
      *
      * A list of activation Options is used. To use the same activation in
-     * every layer, see [new_simple_with_activation].
+     * every layer, see [Self::new_simple_with_activation].
      */
     pub fn new_simple(layer_sizes: &[u16], activations: &[Option<NNActivation>]) -> Self {
         SimpleNeuralNetwork {

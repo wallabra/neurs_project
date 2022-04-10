@@ -1,7 +1,7 @@
 /*!
  * A generic interface for autoencoder behaviour.
  *
- * This is actually implemented by the [neuralnet] module.
+ * This is actually implemented by the [super::neuralnet] module.
  */
 
 /**
@@ -26,8 +26,8 @@ pub trait Item {
 /**
  * The basic interface for an object that can behave as an Autoencoder.
  *
- * Usually, you're looking at a neural network from the [neuralnet] module of
- * _styliso_.
+ * Usually, you're looking at a neural network from the [super::neuralnet]
+ * module of _styliso_.
  */
 pub trait Autoencoder<T: Item> {
     /// "Implodes" an item into a distilled representation of f32.

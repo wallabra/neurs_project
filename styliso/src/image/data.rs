@@ -24,7 +24,7 @@ pub struct ImageData {
     /// The height of this image.
     pub height: u16,
 
-    /// The area of this image; that is, the product of its [width] and [height].
+    /// The area of this image; that is, the product of its width and height.
     pub area: u32,
 }
 

@@ -31,7 +31,7 @@ pub trait TrainingFrame {
 }
 
 /**
- * The particular strategy a [Trainer] can employ to adjust the
+ * The particular strategy a [super::trainer::Trainer] can employ to adjust the
  * weights of a neural network according to the training inputs and fitness
  * score provided by the [TrainingFrame].
  */

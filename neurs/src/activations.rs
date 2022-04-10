@@ -1,5 +1,5 @@
 //! Functions which are meant to be used as activation functions by neural
-//! networks' layers. See [NeuralLayer].
+//! networks' layers. See [super::neuralnet::NeuralLayer].
 
 /// The ReLu activation function; returns x, unless it is negative, in which
 /// case 0 is returned instead.

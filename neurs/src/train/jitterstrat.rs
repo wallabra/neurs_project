@@ -17,14 +17,14 @@ use super::super::neuralnet::SimpleNeuralNetwork;
 use super::interface::{TrainingFrame, TrainingStrategy};
 use crate::neuralnet::NeuralLayer;
 use rand::thread_rng;
-use rand_distr::{Distribution, Normal};
+use rand_distr::*;
 
 /**
  * The weight-jitter training strategy.
  */
 pub struct WeightJitterStrat {
     /// How many different 'jitters' of the same weight should be tried.
-    pub num_jitters: u16,
+    pub num_jitters: usize,
 
     /// Whether bad jitters should be taken into account when adjusting the
     /// current network's weights (by "moving away from" them).
@@ -33,12 +33,56 @@ pub struct WeightJitterStrat {
     /// How much the weights should be randomized in a jitter.
     pub jitter_width: f32,
 
+    /// The amount of jitter_width that should be culled away with each epoch.
+    pub jitter_width_falloff: f32,
+
+    /// How much the weights should be adjusted after an epoch.
+    pub step_factor: f32,
+    
+    /// How many cycles of compute and get-fitness should be run per network,
+    /// per epoch.
+    pub num_steps_per_epoch: usize,
+
+    /* Internals. */
+
+    pub curr_jitter_width: f32,
+}
+
+pub struct WeightJitterStratOptions {
+    /// How many different 'jitters' of the same weight should be tried.
+    pub num_jitters: usize,
+
+    /// Whether bad jitters should be taken into account when adjusting the
+    /// current network's weights (by "moving away from" them).
+    pub count_bad_jitters: bool,
+
+    /// How much the weights should be randomized in a jitter.
+    pub jitter_width: f32,
+
+    /// The amount of jitter_width that should be culled away with each epoch.
+    pub jitter_width_falloff: f32,
+
     /// How much the weights should be adjusted after an epoch.
     pub step_factor: f32,
 
     /// How many cycles of compute and get-fitness should be run per network,
     /// per epoch.
-    pub num_steps_per_epoch: u16,
+    pub num_steps_per_epoch: usize,
+}
+
+impl WeightJitterStrat {
+    pub fn new(options: WeightJitterStratOptions) -> WeightJitterStrat {
+        WeightJitterStrat {
+            num_jitters:            options.num_jitters,
+            jitter_width:           options.jitter_width,
+            jitter_width_falloff:   options.jitter_width_falloff,
+            step_factor:            options.step_factor,
+            num_steps_per_epoch:    options.num_steps_per_epoch,
+            count_bad_jitters:      options.count_bad_jitters,
+
+            curr_jitter_width:      options.jitter_width
+        }
+    }
 }
 
 fn jitter_values<D: Distribution<f32>>(values: &mut [f32], distrib: D) {
@@ -53,7 +97,13 @@ struct WeightsAndBiases {
     b: Vec<f32>,
 }
 
+#[allow(unused)]
 impl WeightsAndBiases {
+    fn zero(&mut self) {
+        self.w.fill(0.0);
+        self.b.fill(0.0);
+    }
+
     fn jitter<D: Distribution<f32>>(&mut self, distrib: &D) {
         jitter_values(&mut self.w, &distrib);
         jitter_values(&mut self.b, &distrib);
@@ -67,6 +117,16 @@ impl WeightsAndBiases {
 
         dest_layer.weights.clone_from(&self.w);
         dest_layer.biases.clone_from(&self.b);
+    }
+
+    fn scale(&mut self, scale: f32) {
+        for w in &mut self.w {
+            *w *= scale;
+        }
+
+        for b in &mut self.b {
+            *b *= scale;
+        }
     }
 
     fn scale_from(&mut self, other: &WeightsAndBiases, scale: f32) {
@@ -129,7 +189,14 @@ struct WnbList {
     wnbs: Vec<WeightsAndBiases>,
 }
 
+#[allow(unused)]
 impl WnbList {
+    fn zero(&mut self) {
+        for wnb in &mut self.wnbs {
+            wnb.zero()
+        }
+    }
+
     fn apply_to(&self, dest_net: &mut SimpleNeuralNetwork) {
         if cfg!(dbg) {
             assert!(dest_net.layers.len() == self.wnbs.len());
@@ -143,6 +210,12 @@ impl WnbList {
     fn jitter<D: Distribution<f32>>(&mut self, distrib: &D) {
         for wnb in &mut self.wnbs {
             wnb.jitter(&distrib);
+        }
+    }
+
+    fn scale(&mut self, scale: f32) {
+        for wnb in &mut self.wnbs {
+            wnb.scale(scale);
         }
     }
 
@@ -182,28 +255,39 @@ impl From<&mut SimpleNeuralNetwork> for WnbList {
 }
 
 impl TrainingStrategy for WeightJitterStrat {
+    fn reset_training(&mut self) {
+        self.curr_jitter_width = self.jitter_width;
+    }
+
     fn epoch(
         &mut self,
         net: &mut SimpleNeuralNetwork,
         frame: &mut Box<dyn TrainingFrame>,
     ) -> Result<f32, String> {
         debug_assert!(self.num_jitters > 0);
-        debug_assert!(self.jitter_width > 0.0);
+        debug_assert!(self.jitter_width >= 0.0);
         debug_assert!(self.num_steps_per_epoch > 0);
-        debug_assert!(self.step_factor > 0.0);
+        debug_assert!(self.step_factor >= 0.0);
 
         let mut output = vec![0.0; net.output_size()? as usize];
 
-        let reference_input = frame.next_training_case();
-        net.compute_values(&reference_input, &mut output)?;
-        let reference_fitness = frame.get_reference_fitness(&reference_input, &output);
+        let mut reference_fitness = 0.0;
+
+        for _ in 0..self.num_steps_per_epoch {
+            let reference_input = frame.next_training_case();
+            net.compute_values(&reference_input, &mut output)?;
+            reference_fitness += frame.get_reference_fitness(&reference_input, &output);
+        }
+
+        reference_fitness /= self.num_steps_per_epoch as f32;
 
         let reference_wnb: WnbList = WnbList::from(&*net);
         let mut new_wnb: WnbList = reference_wnb.clone();
+        // new_wnb.zero();
 
-        let distrib = Normal::new(0.0, self.jitter_width).unwrap();
+        let distrib = Uniform::new(-self.curr_jitter_width, self.curr_jitter_width);
         let mut jitter_results: Vec<(WnbList, f32)> =
-            vec![(reference_wnb.clone(), 0.0); self.num_jitters.into()];
+            vec![(reference_wnb.clone(), 0.0); self.num_jitters];
 
         for result in &mut jitter_results {
             result.0.jitter(&distrib);
@@ -213,12 +297,19 @@ impl TrainingStrategy for WeightJitterStrat {
         for result in &mut jitter_results {
             result.0.apply_to(net);
 
+            frame.reset_frame();
+
             for _ in 0..self.num_steps_per_epoch {
                 let next_input = frame.next_training_case();
                 net.compute_values(&next_input, &mut output)?;
 
-                result.1 += frame.get_fitness(&next_input, &output) - reference_fitness;
+                let fit = frame.get_fitness(&next_input, &output);
+
+                let delta_fit = fit - reference_fitness;
+                result.1 += delta_fit;
             }
+
+            result.1 /= self.num_steps_per_epoch as f32;
         }
 
         // Apply jitters
@@ -234,24 +325,39 @@ impl TrainingStrategy for WeightJitterStrat {
             .reduce(|ac, n| if ac > n { ac } else { n })
             .unwrap();
 
-        let avg_fitness = (min_fitness + max_fitness) / 2.0;
+        let num_ok_jitters = if self.count_bad_jitters {
+            self.num_jitters
+        } else {
+            jitter_results
+                .iter()
+                .map(|x| if x.1 > 0.0 { 1_usize } else { 0_usize })
+                .sum::<usize>()
+        };
 
-        if max_fitness == min_fitness {
-            // Cannot train if the jitters' fitnesses are all the same.
-            return Err("Cannot train further; all jitters return the same fitness".to_owned());
-        }
+        if num_ok_jitters > 0 {
+            let step_factor = self.step_factor / num_ok_jitters as f32;
 
-        let step_factor = self.step_factor / self.num_jitters as f32;
+            for (wnbs, fitness) in &mut jitter_results {
+                if self.count_bad_jitters || *fitness > 0.0 {
+                    let fitness_scale =
+                        (*fitness - min_fitness) * step_factor / (1.0 + (max_fitness - min_fitness));
 
-        for (wnbs, fitness) in &mut jitter_results {
-            if *fitness > 0.0 || self.count_bad_jitters {
-                let fitness_scale = (*fitness - avg_fitness) / (max_fitness - min_fitness);
-
-                wnbs.scale_from(&reference_wnb, fitness_scale * step_factor);
-                wnbs.sub_from(&reference_wnb);
-                wnbs.add_to(&mut new_wnb);
+                    wnbs.sub_from(&reference_wnb);
+                    wnbs.scale(fitness_scale);
+                    wnbs.add_to(&mut new_wnb);
+                }
             }
+
+            //println!("Applied {} jitters.", num_ok_jitters);
         }
+
+        else {
+            new_wnb = reference_wnb.clone();
+
+            //println!("Applied NO jitters.");
+        }
+
+        self.curr_jitter_width *= 1.0 - self.jitter_width_falloff;
 
         new_wnb.apply_to(net);
 
@@ -268,7 +374,7 @@ mod tests {
     #[test]
     fn test_jitter_training() {
         let xor_net = neuralnet::SimpleNeuralNetwork::new_simple_with_activation(
-            &[2, 5, 2],
+            &[2, 3, 2],
             Some(activations::fast_sigmoid),
         );
 
@@ -281,18 +387,23 @@ mod tests {
             ],
             vec![1, 1, 0, 0],
             Some(Box::new(|x: f32| (x * x).abs())),
+            true,
         )
         .unwrap();
 
-        println!("There are {} training cases.", frame.num_cases());
+        let num_cases = frame.num_cases();
+        println!("There are {} training cases.", num_cases);
 
-        let strategy = WeightJitterStrat {
-            count_bad_jitters: false,
+        let strategy = WeightJitterStrat::new(WeightJitterStratOptions {
+            count_bad_jitters: true,
             num_jitters: 300,
-            jitter_width: 0.1,
-            step_factor: 1.0,
-            num_steps_per_epoch: frame.num_cases() as u16,
-        };
+            jitter_width: 0.9,
+            jitter_width_falloff: 0.01,
+            step_factor: 0.95,
+            num_steps_per_epoch: num_cases,
+        });
+        let mut jitter_width = strategy.jitter_width;
+        let jitter_width_falloff = strategy.jitter_width_falloff;
 
         let mut trainer =
             trainer::Trainer::new_from_net(&xor_net, Box::from(frame), Box::from(strategy));
@@ -301,9 +412,10 @@ mod tests {
 
         println!("Training xor network...");
 
-        for epoch in 1..=200 {
+        for epoch in 1..=100 {
             let best_fitness = trainer.epoch().unwrap();
-            println!("Epoch {} done! Best fitness: {}", epoch, best_fitness);
+            jitter_width *= 1.0 - jitter_width_falloff;
+            println!("Epoch {} done! Best fitness {}, jitter width now {}", epoch, best_fitness, jitter_width);
         }
 
         println!("Done training! Testing XOR network:");
@@ -327,16 +439,33 @@ mod tests {
         }
 
         println!("Asserting answers make sense...");
-        for inp in vec![[0.0, 1.0], [1.0, 0.0], [1.0, 1.0], [0.0, 0.0]] {
+        let mut ok_cases = 0;
+
+        for (i, inp) in vec![[0.0, 1.0], [1.0, 0.0], [1.0, 1.0], [0.0, 0.0]]
+            .iter()
+            .enumerate()
+        {
             trainer
                 .reference_net
-                .compute_values(&inp, &mut outputs)
+                .compute_values(inp, &mut outputs)
                 .unwrap();
 
-            assert_eq!(
-                (outputs[1] - outputs[0]) > 0.5,
-                ((inp[0] > 0.5) != (inp[1] > 0.5))
-            );
+            let makes_sense = ((outputs[1] - outputs[0]) > 0.0) == ((inp[0] > 0.5) != (inp[1] > 0.5));
+
+            if makes_sense {
+                ok_cases += 1;
+                println!("Output in case #{} makes sense.", i + 1);
+            }
+
+            else {
+                println!("Output in case #{} does NOT make sense.", i + 1);
+            }
         }
+
+        println!("{} out of {} cases make sense.", ok_cases, num_cases);
+        assert_eq!(ok_cases, num_cases);
+
+        println!("Yay!");
+        assert!("pizza" == "cake");
     }
 }

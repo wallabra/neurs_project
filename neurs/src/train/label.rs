@@ -62,9 +62,20 @@ where
      */
     inputs: Vec<(Vec<f32>, LabelType)>,
 
-    curr_case: isize,
+    /// The currently used training case.
+    curr_case: usize,
 
+    /// The metric to use to measure the error of an output.
+    ///
+    /// Used when verifying whether the one-hot encoded output of a network in
+    /// a training case matches the expected output as per the case's
+    /// corresponding label.
     distance_wrapper: Box<DistanceWrapper>,
+
+    /// Whether reference_fitness should be used.
+    ///
+    /// If this is false, get_reference_fitness will always return zero.
+    use_reference_fitness: bool,
 }
 
 impl<T> LabeledLearningFrame<T>
@@ -75,19 +86,22 @@ where
         cases_inputs: Vec<Vec<f32>>,
         cases_labels: Vec<T>,
         distance_wrapper: Option<Box<DistanceWrapper>>,
+        use_reference_fitness: bool,
     ) -> Result<Self, String> {
         if (cfg!(debug) || cfg!(tests)) && cases_inputs.len() != cases_labels.len() {
             return Err("".to_owned());
         }
 
         Ok(Self {
+            use_reference_fitness,
+
             inputs: cases_inputs
                 .iter()
                 .cloned()
                 .zip(cases_labels.iter().cloned())
                 .collect(),
 
-            curr_case: -1,
+            curr_case: cases_inputs.len() - 1,
 
             distance_wrapper: Box::from(
                 distance_wrapper.map_or(f32::abs as fn(f32) -> f32, |x| *x),
@@ -107,7 +121,7 @@ where
 
     /**
      * The number of training cases registered.
-     * 
+     *
      * Each network should be tested against all of them.
      */
     pub fn num_cases(&self) -> usize {
@@ -124,11 +138,11 @@ where
      * training process.
      */
     fn reset_frame(&mut self) {
-        self.curr_case = 0;
+        self.curr_case = self.inputs.len() - 1;
     }
 
     fn next_training_case(&mut self) -> Vec<f32> {
-        self.curr_case = ((self.curr_case + 1) as usize % (self.inputs.len() as usize)) as isize;
+        self.curr_case = (self.curr_case + 1) % self.inputs.len();
 
         self.inputs[self.curr_case as usize].0.clone()
     }
@@ -155,6 +169,10 @@ where
     }
 
     fn get_reference_fitness(&mut self, inputs: &[f32], outputs: &[f32]) -> f32 {
-        self.get_fitness(inputs, outputs)
+        if self.use_reference_fitness {
+            self.get_fitness(inputs, outputs)
+        } else {
+            0.0
+        }
     }
 }

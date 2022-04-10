@@ -43,6 +43,11 @@ pub trait TrainingFrame {
  */
 pub trait TrainingStrategy {
     /**
+     * Reset the TrainingStrategy's internals for a new training session.
+     */
+    fn reset_training(&mut self);
+
+    /**
      * Perform an epoch of training on the neural network.
      *
      * Should return the best fitness arising from this epoch.

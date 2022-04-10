@@ -1,9 +1,12 @@
 [workspace]
 members = [
-    # Main libraries
+    # Main project libraries
     "neurs",            # core
     "styliso",          # image style distinction
     "cnmc",             # sentence generator
+
+    # Support libraries
+    "wordmarkov",       # markov chain for words (used by cnmc)
 
     # Demo programs
     "cnmc_console"      # cnmc demo (conversation console)

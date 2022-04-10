@@ -253,7 +253,7 @@ impl TrainingStrategy for WeightJitterStrat {
     }
 }
 
-#[cfg(tests)]
+#[cfg(test)]
 mod tests {
     use super::*;
     use crate::net::train::{label, trainer};

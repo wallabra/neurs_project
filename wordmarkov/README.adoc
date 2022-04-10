@@ -1,0 +1,28 @@
+wordmarkov
+-----------
+:author: Gustavo Ramos Rehermann
+:toc:
+:numbered:
+
+A Markov chain library which is tailored for sentences.
+
+This library is a part of the Neurs Project.
+
+## Specifics
+
+Unlike a general-purpose Markov chain, a Markov chain in WordMarkov retains
+information about punctuation and whitespace.
+
+The same two words can have multiple edges if there are instances where they
+are separated differently. For example, "high priest" and "high-priest" will
+both result in the tokens "high" and "priest" being linked, but there will be
+two links each representing a kind of separation.
+
+There are two special tokens, `START` and `END`, which also come into play.
+The Markov chain can be walked both forwards and backwards. Whenever walking in
+either direction, ideally, one of the special tokens will be reached under a
+finite amount of time (words walked).
+
+## License
+
+For licensing information, see the Neurs Project main repository.

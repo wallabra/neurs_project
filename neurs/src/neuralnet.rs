@@ -8,6 +8,7 @@
  */
 use super::activations::relu;
 use rand::prelude::*;
+use rand_distr::*;
 
 type NNActivation = fn(f32) -> f32;
 
@@ -48,8 +49,16 @@ impl NeuralLayer {
         let mut weights: Vec<f32> = vec![0.0; area as usize];
         let mut biases: Vec<f32> = vec![0.0; output_size as usize];
 
-        thread_rng().fill(weights.as_mut_slice());
-        thread_rng().fill(biases.as_mut_slice());
+        let mut random_distrib = Normal::<f32>::new(0.0, 1.0)
+            .unwrap()
+            .sample_iter(thread_rng());
+
+        weights
+            .as_mut_slice()
+            .fill_with(|| random_distrib.next().unwrap());
+        biases
+            .as_mut_slice()
+            .fill_with(|| random_distrib.next().unwrap());
 
         NeuralLayer {
             activation: Box::from(activation),

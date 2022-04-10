@@ -28,7 +28,7 @@ pub struct WeightJitterStrat {
 
     /// Whether bad jitters should be taken into account when adjusting the
     /// current network's weights (by "moving away from" them).
-    pub count_bad_jitters: bool,
+    pub apply_bad_jitters: bool,
 
     /// How much the weights should be randomized in a jitter.
     pub jitter_width: f32,
@@ -38,13 +38,12 @@ pub struct WeightJitterStrat {
 
     /// How much the weights should be adjusted after an epoch.
     pub step_factor: f32,
-    
+
     /// How many cycles of compute and get-fitness should be run per network,
     /// per epoch.
     pub num_steps_per_epoch: usize,
 
     /* Internals. */
-
     pub curr_jitter_width: f32,
 }
 
@@ -54,7 +53,7 @@ pub struct WeightJitterStratOptions {
 
     /// Whether bad jitters should be taken into account when adjusting the
     /// current network's weights (by "moving away from" them).
-    pub count_bad_jitters: bool,
+    pub apply_bad_jitters: bool,
 
     /// How much the weights should be randomized in a jitter.
     pub jitter_width: f32,
@@ -73,14 +72,14 @@ pub struct WeightJitterStratOptions {
 impl WeightJitterStrat {
     pub fn new(options: WeightJitterStratOptions) -> WeightJitterStrat {
         WeightJitterStrat {
-            num_jitters:            options.num_jitters,
-            jitter_width:           options.jitter_width,
-            jitter_width_falloff:   options.jitter_width_falloff,
-            step_factor:            options.step_factor,
-            num_steps_per_epoch:    options.num_steps_per_epoch,
-            count_bad_jitters:      options.count_bad_jitters,
+            num_jitters: options.num_jitters,
+            jitter_width: options.jitter_width,
+            jitter_width_falloff: options.jitter_width_falloff,
+            step_factor: options.step_factor,
+            num_steps_per_epoch: options.num_steps_per_epoch,
+            apply_bad_jitters: options.apply_bad_jitters,
 
-            curr_jitter_width:      options.jitter_width
+            curr_jitter_width: options.jitter_width,
         }
     }
 }
@@ -285,7 +284,7 @@ impl TrainingStrategy for WeightJitterStrat {
         let mut new_wnb: WnbList = reference_wnb.clone();
         // new_wnb.zero();
 
-        let distrib = Uniform::new(-self.curr_jitter_width, self.curr_jitter_width);
+        let distrib = Normal::new(0.0, self.curr_jitter_width).unwrap();
         let mut jitter_results: Vec<(WnbList, f32)> =
             vec![(reference_wnb.clone(), 0.0); self.num_jitters];
 
@@ -325,7 +324,7 @@ impl TrainingStrategy for WeightJitterStrat {
             .reduce(|ac, n| if ac > n { ac } else { n })
             .unwrap();
 
-        let num_ok_jitters = if self.count_bad_jitters {
+        let num_ok_jitters = if self.apply_bad_jitters {
             self.num_jitters
         } else {
             jitter_results
@@ -338,20 +337,24 @@ impl TrainingStrategy for WeightJitterStrat {
             let step_factor = self.step_factor / num_ok_jitters as f32;
 
             for (wnbs, fitness) in &mut jitter_results {
-                if self.count_bad_jitters || *fitness > 0.0 {
-                    let fitness_scale =
-                        (*fitness - min_fitness) * step_factor / (1.0 + (max_fitness - min_fitness));
+                if self.apply_bad_jitters || *fitness > 0.0 {
+                    let fitness_scale = (*fitness - min_fitness)
+                        / (if max_fitness == min_fitness {
+                            1.0
+                        } else {
+                            max_fitness - min_fitness
+                        })
+                        * 2.0
+                        - 1.0;
 
                     wnbs.sub_from(&reference_wnb);
-                    wnbs.scale(fitness_scale);
+                    wnbs.scale(fitness_scale * step_factor);
                     wnbs.add_to(&mut new_wnb);
                 }
             }
 
             //println!("Applied {} jitters.", num_ok_jitters);
-        }
-
-        else {
+        } else {
             new_wnb = reference_wnb.clone();
 
             //println!("Applied NO jitters.");
@@ -361,7 +364,7 @@ impl TrainingStrategy for WeightJitterStrat {
 
         new_wnb.apply_to(net);
 
-        Ok(max_fitness)
+        Ok(max_fitness + reference_fitness)
     }
 }
 
@@ -386,7 +389,7 @@ mod tests {
                 vec![0.0, 0.0],
             ],
             vec![1, 1, 0, 0],
-            Some(Box::new(|x: f32| (x * x).abs())),
+            Some(Box::new(|x: f32| x * x)),
             true,
         )
         .unwrap();
@@ -395,11 +398,11 @@ mod tests {
         println!("There are {} training cases.", num_cases);
 
         let strategy = WeightJitterStrat::new(WeightJitterStratOptions {
-            count_bad_jitters: true,
-            num_jitters: 300,
-            jitter_width: 0.9,
-            jitter_width_falloff: 0.01,
-            step_factor: 0.95,
+            apply_bad_jitters: true,
+            num_jitters: 100,
+            jitter_width: 1.0,
+            jitter_width_falloff: 0.02,
+            step_factor: 0.6,
             num_steps_per_epoch: num_cases,
         });
         let mut jitter_width = strategy.jitter_width;
@@ -412,10 +415,13 @@ mod tests {
 
         println!("Training xor network...");
 
-        for epoch in 1..=100 {
+        for epoch in 1..=150 {
             let best_fitness = trainer.epoch().unwrap();
             jitter_width *= 1.0 - jitter_width_falloff;
-            println!("Epoch {} done! Best fitness {}, jitter width now {}", epoch, best_fitness, jitter_width);
+            println!(
+                "Epoch {} done! Best fitness {}, jitter width now {}",
+                epoch, best_fitness, jitter_width
+            );
         }
 
         println!("Done training! Testing XOR network:");
@@ -450,14 +456,13 @@ mod tests {
                 .compute_values(inp, &mut outputs)
                 .unwrap();
 
-            let makes_sense = ((outputs[1] - outputs[0]) > 0.0) == ((inp[0] > 0.5) != (inp[1] > 0.5));
+            let makes_sense =
+                ((outputs[1] - outputs[0]) > 0.0) == ((inp[0] > 0.5) != (inp[1] > 0.5));
 
             if makes_sense {
                 ok_cases += 1;
                 println!("Output in case #{} makes sense.", i + 1);
-            }
-
-            else {
+            } else {
                 println!("Output in case #{} does NOT make sense.", i + 1);
             }
         }
@@ -466,6 +471,5 @@ mod tests {
         assert_eq!(ok_cases, num_cases);
 
         println!("Yay!");
-        assert!("pizza" == "cake");
     }
 }

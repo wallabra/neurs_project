@@ -256,8 +256,8 @@ impl TrainingStrategy for WeightJitterStrat {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::net::train::{label, trainer};
-    use crate::net::{activations, neuralnet};
+    use crate::train::{label, trainer};
+    use crate::{activations, neuralnet};
 
     #[test]
     fn test_jitter_training() {

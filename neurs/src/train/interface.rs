@@ -19,6 +19,12 @@ pub trait TrainingFrame {
     fn next_training_case(&mut self) -> Vec<f32>;
 
     /**
+     * Reset the training frame; called before each network is trained in the
+     * training process.
+     */
+    fn reset_frame(&mut self);
+
+    /**
      * How well the network scores by providing an output to an input suggested
      * by the training frame.
      */

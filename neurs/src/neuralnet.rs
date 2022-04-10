@@ -65,7 +65,7 @@ impl NeuralLayer {
 
     /// Transforms a vector of values through this dense layer of neurons.
     pub fn compute(&self, inputs: &[f32], outputs: &mut [f32]) -> Result<(), String> {
-        if cfg!(debug) {
+        if cfg!(debug) || cfg!(tests) {
             if inputs.len() < self.input_size as usize {
                 return Err("Source slice is smaller than the input size of this layer".to_owned());
             }
@@ -87,9 +87,8 @@ impl NeuralLayer {
                 self.biases[i]
                     + ((0..input_size as usize)
                         .map(|j| inputs[j] * weight_slice[j])
-                        .reduce(|a, b| a + b)
-                        .unwrap_or(0.0)),
-            )
+                        .sum::<f32>()),
+            );
         }
 
         Ok(())
@@ -169,7 +168,7 @@ impl SimpleNeuralNetwork {
 
     /// Computes a list of floats and saves the result in an output buffer.
     pub fn compute_values(&self, inputs: &[f32], outputs: &mut [f32]) -> Result<(), String> {
-        if cfg!(debug) {
+        if cfg!(debug) || cfg!(tests) {
             if self.layers.is_empty() {
                 return Err("There are no layers in this network".to_owned());
             }
@@ -186,20 +185,17 @@ impl SimpleNeuralNetwork {
             }
         }
 
-        let mut in_values = inputs;
-        let mut dest: Vec<f32>;
-        let mut dest_values: Vec<f32>;
+        let mut in_values = inputs.to_vec();
 
         for layer in &self.layers {
-            dest = vec![0.0; layer.output_size as usize];
+            let mut dest = vec![0.0; layer.output_size as usize];
 
-            layer.compute(in_values, &mut dest)?;
+            layer.compute(&in_values, &mut dest)?;
 
-            dest_values = dest;
-            in_values = &dest_values;
+            in_values = dest;
         }
 
-        outputs.copy_from_slice(in_values);
+        outputs.copy_from_slice(&in_values);
 
         Ok(())
     }

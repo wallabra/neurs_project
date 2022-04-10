@@ -40,7 +40,7 @@ impl<LabelType: TrainingLabel> neurs::Item for LabeledImage<LabelType> {
             .unwrap()
             .0;
 
-        self.label = LabelType::from_index(label_idx as u16);
+        self.label = LabelType::from_index(label_idx);
         self.img.decode_from(img_data)?;
 
         Ok(())

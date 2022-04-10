@@ -13,9 +13,9 @@
  * networks. However, the implementation provided here is specific to neural
  * networks, for the sake of performance and code simplicity.
  */
-use crate::neuralnet::NeuralLayer;
 use super::super::neuralnet::SimpleNeuralNetwork;
 use super::interface::{TrainingFrame, TrainingStrategy};
+use crate::neuralnet::NeuralLayer;
 use rand::thread_rng;
 use rand_distr::{Distribution, Normal};
 
@@ -192,7 +192,7 @@ impl TrainingStrategy for WeightJitterStrat {
         debug_assert!(self.num_steps_per_epoch > 0);
         debug_assert!(self.step_factor > 0.0);
 
-        let mut output = Vec::with_capacity(net.output_size()? as usize);
+        let mut output = vec![0.0; net.output_size()? as usize];
 
         let reference_input = frame.next_training_case();
         net.compute_values(&reference_input, &mut output)?;
@@ -202,7 +202,8 @@ impl TrainingStrategy for WeightJitterStrat {
         let mut new_wnb: WnbList = reference_wnb.clone();
 
         let distrib = Normal::new(0.0, self.jitter_width).unwrap();
-        let mut jitter_results: Vec<(WnbList, f32)> = vec![(reference_wnb.clone(), 0.0)];
+        let mut jitter_results: Vec<(WnbList, f32)> =
+            vec![(reference_wnb.clone(), 0.0); self.num_jitters.into()];
 
         for result in &mut jitter_results {
             result.0.jitter(&distrib);
@@ -216,11 +217,12 @@ impl TrainingStrategy for WeightJitterStrat {
                 let next_input = frame.next_training_case();
                 net.compute_values(&next_input, &mut output)?;
 
-                result.1 += reference_fitness - frame.get_fitness(&next_input, &output);
+                result.1 += frame.get_fitness(&next_input, &output) - reference_fitness;
             }
         }
 
         // Apply jitters
+
         let min_fitness = jitter_results
             .iter()
             .map(|x| x.1)
@@ -232,16 +234,20 @@ impl TrainingStrategy for WeightJitterStrat {
             .reduce(|ac, n| if ac > n { ac } else { n })
             .unwrap();
 
+        let avg_fitness = (min_fitness + max_fitness) / 2.0;
+
         if max_fitness == min_fitness {
             // Cannot train if the jitters' fitnesses are all the same.
             return Err("Cannot train further; all jitters return the same fitness".to_owned());
         }
 
+        let step_factor = self.step_factor / self.num_jitters as f32;
+
         for (wnbs, fitness) in &mut jitter_results {
             if *fitness > 0.0 || self.count_bad_jitters {
-                let fitness_scale = (*fitness - min_fitness) / (max_fitness - min_fitness);
+                let fitness_scale = (*fitness - avg_fitness) / (max_fitness - min_fitness);
 
-                wnbs.scale_from(&reference_wnb, fitness_scale * self.step_factor);
+                wnbs.scale_from(&reference_wnb, fitness_scale * step_factor);
                 wnbs.sub_from(&reference_wnb);
                 wnbs.add_to(&mut new_wnb);
             }
@@ -262,11 +268,11 @@ mod tests {
     #[test]
     fn test_jitter_training() {
         let xor_net = neuralnet::SimpleNeuralNetwork::new_simple_with_activation(
-            &[2, 5, 1],
-            Some(activations::relu),
+            &[2, 5, 2],
+            Some(activations::fast_sigmoid),
         );
 
-        let frame: label::LabeledLearningFrame<u16> = label::LabeledLearningFrame::new(
+        let frame: label::LabeledLearningFrame<usize> = label::LabeledLearningFrame::new(
             vec![
                 vec![1.0, 0.0],
                 vec![0.0, 1.0],
@@ -274,16 +280,18 @@ mod tests {
                 vec![0.0, 0.0],
             ],
             vec![1, 1, 0, 0],
-            Some(Box::new(|x: f32| x * x)),
+            Some(Box::new(|x: f32| (x * x).abs())),
         )
         .unwrap();
 
+        println!("There are {} training cases.", frame.num_cases());
+
         let strategy = WeightJitterStrat {
-            count_bad_jitters: true,
-            num_jitters: 8,
-            jitter_width: 0.15,
-            step_factor: 0.4,
-            num_steps_per_epoch: 1,
+            count_bad_jitters: false,
+            num_jitters: 300,
+            jitter_width: 0.1,
+            step_factor: 1.0,
+            num_steps_per_epoch: frame.num_cases() as u16,
         };
 
         let mut trainer =
@@ -293,12 +301,12 @@ mod tests {
 
         println!("Training xor network...");
 
-        for epoch in 1..50 {
+        for epoch in 1..=200 {
             let best_fitness = trainer.epoch().unwrap();
             println!("Epoch {} done! Best fitness: {}", epoch, best_fitness);
         }
 
-        println!("Done trainig! Testing XOR network:");
+        println!("Done training! Testing XOR network:");
 
         let mut outputs: Vec<f32> = vec![0.0, 0.0];
 
@@ -307,7 +315,28 @@ mod tests {
                 .reference_net
                 .compute_values(&inp, &mut outputs)
                 .unwrap();
-            println!("[{}, {}] -> {:?}", inp[0] as u8, inp[1] as u8, outputs);
+            println!(
+                "[{}, {}] -> {:?} ([{}, {}]) (fitness {})",
+                inp[0] as u8,
+                inp[1] as u8,
+                outputs[1] - outputs[0],
+                outputs[0],
+                outputs[1],
+                trainer.frame.get_fitness(&inp, &outputs)
+            );
+        }
+
+        println!("Asserting answers make sense...");
+        for inp in vec![[0.0, 1.0], [1.0, 0.0], [1.0, 1.0], [0.0, 0.0]] {
+            trainer
+                .reference_net
+                .compute_values(&inp, &mut outputs)
+                .unwrap();
+
+            assert_eq!(
+                (outputs[1] - outputs[0]) > 0.5,
+                ((inp[0] > 0.5) != (inp[1] > 0.5))
+            );
         }
     }
 }

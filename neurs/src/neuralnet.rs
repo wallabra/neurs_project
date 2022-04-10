@@ -118,6 +118,7 @@ impl SimpleNeuralNetwork {
         SimpleNeuralNetwork {
             layers: layer_sizes
                 .iter()
+                .take(layer_sizes.len() - 1)
                 .zip(layer_sizes.iter().skip(1))
                 .enumerate()
                 .map(|item| {

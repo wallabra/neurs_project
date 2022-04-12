@@ -1,7 +1,8 @@
 /*!
  * Label-based supervised learning frame for the TrainingFrame interface.
  */
-use super::{interface, TrainingFrame};
+use super::interface;
+use super::interface::TrainingFrame;
 use crate::prelude::*;
 
 /// A label that can be used by the [LabeledLearningFrame].

@@ -18,6 +18,8 @@
  * also might or not be possible to mix and match labels by specifying multiple
  * of them in the input.
  */
+pub mod prelude;
 pub mod image;
+pub mod autoenc;
 
 pub fn main() {}

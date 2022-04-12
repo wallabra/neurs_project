@@ -1,7 +1,7 @@
 /*!
  * The internal image data holder.
  */
-use neurs::interface as autoencoder;
+use crate::autoenc::prelude::*;
 
 /**
  * Image data, internally represented as separate Vecs
@@ -28,7 +28,7 @@ pub struct ImageData {
     pub area: u32,
 }
 
-impl autoencoder::Item for ImageData {
+impl Item for ImageData {
     /// Encodes an image into autoencoder data.
     fn encode(&self) -> Result<Vec<f32>, &str> {
         let area = self.area;

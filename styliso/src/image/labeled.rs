@@ -3,6 +3,7 @@
  * very particular to this project.
  */
 use super::data::ImageData;
+use crate::prelude::*;
 use neurs::train::label::TrainingLabel;
 
 /// An image which has been given a label.
@@ -11,7 +12,7 @@ pub struct LabeledImage<LabelType: TrainingLabel> {
     img: ImageData,
 }
 
-impl<LabelType: TrainingLabel> neurs::Item for LabeledImage<LabelType> {
+impl<LabelType: TrainingLabel> Item for LabeledImage<LabelType> {
     /// Vectorizes an image, along with label information, for autoencoding.
     fn encode(&self) -> Result<Vec<f32>, &str> {
         let mut one_hot: Vec<f32> = vec![0.0; LabelType::num_labels() as usize];

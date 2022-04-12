@@ -6,6 +6,4 @@
 pub mod data;
 pub mod labeled;
 pub mod png;
-
-pub use data::*;
-pub use labeled::*;
+pub mod prelude;

@@ -6,5 +6,4 @@ pub mod interface;
 pub mod neuralnet;
 pub mod train;
 
-pub use interface::*;
-pub use neuralnet::*;
+pub mod prelude;

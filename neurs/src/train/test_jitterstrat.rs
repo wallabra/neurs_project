@@ -65,7 +65,7 @@ mod tests {
             Some(activations::fast_sigmoid),
         );
 
-        let frame: label::LabeledLearningFrame<usize> = label::LabeledLearningFrame::new(
+        let mut frame: label::LabeledLearningFrame<usize> = label::LabeledLearningFrame::new(
             vec![
                 vec![1.0, 0.0],
                 vec![0.0, 1.0],
@@ -85,24 +85,33 @@ mod tests {
             apply_bad_jitters: false,
             num_jitters: 30,
             jitter_width: 1.0,
-            jitter_width_falloff: 0.01,
+            adaptive_jitter_width: Some(|_jw, mfit, _rfit| 0.01 - mfit * 1.5),
+            jitter_width_falloff: 0.0,
             step_factor: 0.6,
             num_steps_per_epoch: num_cases,
         });
 
         let mut jitter_width = strategy.jitter_width;
         let jitter_width_falloff = strategy.jitter_width_falloff;
+        let adaptive_jitter_width = strategy.adaptive_jitter_width.clone();
 
         let mut trainer =
-            trainer::Trainer::new_from_net(&net, Box::from(frame), Box::from(strategy));
+            trainer::Trainer::new_from_net(&net, Box::from(frame.clone()), Box::from(strategy));
 
         println!("Trainer initialized successfully!");
 
         println!("Training xor network...");
 
         for epoch in 1..=1000 {
+            let ref_fitness = frame.avg_reference_fitness(&mut trainer.reference_net).unwrap();
             let best_fitness = trainer.epoch().unwrap();
+
             jitter_width *= 1.0 - jitter_width_falloff;
+
+            if adaptive_jitter_width.is_some() {
+                jitter_width = adaptive_jitter_width.as_ref().unwrap()(jitter_width, best_fitness, ref_fitness);
+            }
+
             println!(
                 "Epoch {} done! Best fitness {}, jitter width now {}",
                 epoch, best_fitness, jitter_width
@@ -123,74 +132,5 @@ mod tests {
                 ((out[1] - out[0]) > 0.0) == ((inp[0] > 0.5) != (inp[1] > 0.5))
             },
         );
-    }
-
-    //#[test]
-    fn test_jitter_training_tic_tac_toe() {
-        let net = neuralnet::SimpleNeuralNetwork::new_simple_with_activation(
-            &[2, 3, 2],
-            Some(activations::fast_sigmoid),
-        );
-
-        let frame: label::LabeledLearningFrame<usize> = label::LabeledLearningFrame::new(
-            vec![
-                vec![1.0, 0.0],
-                vec![0.0, 1.0],
-                vec![1.0, 1.0],
-                vec![0.0, 0.0],
-            ],
-            vec![1, 1, 0, 0],
-            Some(Box::new(|x: f32| x * x)),
-            true,
-        )
-        .unwrap();
-
-        let num_cases = frame.num_cases();
-        println!("There are {} training cases.", num_cases);
-
-        let strategy = WeightJitterStrat::new(WeightJitterStratOptions {
-            apply_bad_jitters: true,
-            num_jitters: 2,
-            jitter_width: 1.0,
-            jitter_width_falloff: 0.02,
-            step_factor: 0.6,
-            num_steps_per_epoch: num_cases,
-        });
-
-        let mut jitter_width = strategy.jitter_width;
-        let jitter_width_falloff = strategy.jitter_width_falloff;
-
-        let mut trainer =
-            trainer::Trainer::new_from_net(&net, Box::from(frame), Box::from(strategy));
-
-        println!("Trainer initialized successfully!");
-
-        println!("Training xor network...");
-
-        for epoch in 1..=250 {
-            let best_fitness = trainer.epoch().unwrap();
-            jitter_width *= 1.0 - jitter_width_falloff;
-            println!(
-                "Epoch {} done! Best fitness {}, jitter width now {}",
-                epoch, best_fitness, jitter_width
-            );
-        }
-
-        println!("Done training! Testing XOR network:");
-
-        test_net(
-            trainer,
-            vec![
-                vec![0.0, 1.0],
-                vec![1.0, 0.0],
-                vec![1.0, 1.0],
-                vec![0.0, 0.0],
-            ],
-            |out: &[f32], inp: &[f32]| {
-                ((out[1] - out[0]) > 0.0) == ((inp[0] > 0.5) != (inp[1] > 0.5))
-            },
-        );
-
-        assert_eq!("moo", "quack");
     }
 }

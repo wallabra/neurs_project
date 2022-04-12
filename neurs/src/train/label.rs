@@ -1,7 +1,8 @@
 /*!
  * Label-based supervised learning frame for the TrainingFrame interface.
  */
-use super::interface;
+use super::{interface, TrainingFrame};
+use crate::prelude::*;
 
 /// A label that can be used by the [LabeledLearningFrame].
 pub trait TrainingLabel: Eq + Clone {
@@ -50,6 +51,7 @@ type DistanceWrapper = fn(f32) -> f32;
  * A TrainingFrame implementation which simulates supervised learning
  * through labels.
  */
+#[derive(Clone)]
 pub struct LabeledLearningFrame<LabelType>
 where
     LabelType: TrainingLabel,
@@ -174,5 +176,22 @@ where
         } else {
             0.0
         }
+    }
+}
+
+impl<LT> LabeledLearningFrame<LT> where LT: TrainingLabel {
+    pub fn avg_reference_fitness(&mut self, net: &mut SimpleNeuralNetwork) -> Result<f32, String> {
+        let mut fit = 0.0;
+        let mut output = vec![0.0; net.output_size()?];
+
+        self.reset_frame();
+
+        for _ in 0..self.inputs.len() {
+            let reference_input = self.next_training_case();
+            net.compute_values(&reference_input, &mut output)?;
+            fit += self.get_reference_fitness(&reference_input, &output);
+        }
+
+        Ok(fit / self.inputs.len() as f32)
     }
 }

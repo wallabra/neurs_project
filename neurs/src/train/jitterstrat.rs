@@ -19,16 +19,26 @@ use crate::neuralnet::NeuralLayer;
 use rand::thread_rng;
 use rand_distr::*;
 
+// Waiting for trait aliases to become stable so I can do this.
+//    pub trait AJW = Fn(f32, f32, f32) -> f32;
+
 /**
  * The weight-jitter training strategy.
  */
-pub struct WeightJitterStrat {
+#[derive(Clone)]
+pub struct WeightJitterStrat<AJW>
+where
+    AJW: Fn(f32, f32, f32) -> f32,
+{
     /// How many different 'jitters' of the same weight should be tried.
     pub num_jitters: usize,
 
     /// Whether bad jitters should be taken into account when adjusting the
     /// current network's weights (by "moving away from" them).
     pub apply_bad_jitters: bool,
+
+    /// An optional jitter width multiplier whose input is current best fitness.
+    pub adaptive_jitter_width: Option<AJW>,
 
     /// How much the weights should be randomized in a jitter.
     pub jitter_width: f32,
@@ -47,13 +57,19 @@ pub struct WeightJitterStrat {
     pub curr_jitter_width: f32,
 }
 
-pub struct WeightJitterStratOptions {
+pub struct WeightJitterStratOptions<AJW>
+where
+    AJW: Fn(f32, f32, f32) -> f32,
+{
     /// How many different 'jitters' of the same weight should be tried.
     pub num_jitters: usize,
 
     /// Whether bad jitters should be taken into account when adjusting the
     /// current network's weights (by "moving away from" them).
     pub apply_bad_jitters: bool,
+
+    /// An optional jitter width multiplier whose input is current best fitness.
+    pub adaptive_jitter_width: Option<AJW>,
 
     /// How much the weights should be randomized in a jitter.
     pub jitter_width: f32,
@@ -69,18 +85,37 @@ pub struct WeightJitterStratOptions {
     pub num_steps_per_epoch: usize,
 }
 
-impl WeightJitterStrat {
-    pub fn new(options: WeightJitterStratOptions) -> WeightJitterStrat {
+impl<AJW> WeightJitterStrat<AJW>
+where
+    AJW: Fn(f32, f32, f32) -> f32,
+{
+    pub fn new(options: WeightJitterStratOptions<AJW>) -> WeightJitterStrat<AJW> {
         WeightJitterStrat {
             num_jitters: options.num_jitters,
             jitter_width: options.jitter_width,
             jitter_width_falloff: options.jitter_width_falloff,
             step_factor: options.step_factor,
+            adaptive_jitter_width: options.adaptive_jitter_width,
             num_steps_per_epoch: options.num_steps_per_epoch,
             apply_bad_jitters: options.apply_bad_jitters,
 
             curr_jitter_width: options.jitter_width,
         }
+    }
+
+    fn avg_reference_fitness(&mut self, frame: &mut Box<dyn TrainingFrame>, net: &mut SimpleNeuralNetwork) -> Result<f32, String> {
+        let mut fit = 0.0;
+        let mut output = vec![0.0; net.output_size()?];
+
+        frame.reset_frame();
+
+        for _ in 0..self.num_steps_per_epoch {
+            let reference_input = frame.next_training_case();
+            net.compute_values(&reference_input, &mut output)?;
+            fit += frame.get_reference_fitness(&reference_input, &output);
+        }
+
+        Ok(fit / self.num_steps_per_epoch as f32)
     }
 }
 
@@ -253,7 +288,10 @@ impl From<&mut SimpleNeuralNetwork> for WnbList {
     }
 }
 
-impl TrainingStrategy for WeightJitterStrat {
+impl<AJW> TrainingStrategy for WeightJitterStrat<AJW>
+where
+    AJW: Fn(f32, f32, f32) -> f32,
+{
     fn reset_training(&mut self) {
         self.curr_jitter_width = self.jitter_width;
     }
@@ -268,19 +306,11 @@ impl TrainingStrategy for WeightJitterStrat {
         debug_assert!(self.num_steps_per_epoch > 0);
         debug_assert!(self.step_factor >= 0.0);
 
-        let mut output = vec![0.0; net.output_size()? as usize];
-
-        let mut reference_fitness = 0.0;
-
-        for _ in 0..self.num_steps_per_epoch {
-            let reference_input = frame.next_training_case();
-            net.compute_values(&reference_input, &mut output)?;
-            reference_fitness += frame.get_reference_fitness(&reference_input, &output);
-        }
-
-        reference_fitness /= self.num_steps_per_epoch as f32;
+        let mut output = vec![0.0; net.output_size()?];
 
         let reference_wnb: WnbList = WnbList::from(&*net);
+        let reference_fitness = self.avg_reference_fitness(frame, net)?;
+
         let mut new_wnb: WnbList = reference_wnb.clone();
         // new_wnb.zero();
 
@@ -361,6 +391,14 @@ impl TrainingStrategy for WeightJitterStrat {
         }
 
         self.curr_jitter_width *= 1.0 - self.jitter_width_falloff;
+
+        if self.adaptive_jitter_width.is_some() {
+            self.curr_jitter_width = self.adaptive_jitter_width.as_ref().unwrap()(
+                self.curr_jitter_width,
+                max_fitness - reference_fitness,
+                reference_fitness,
+            );
+        }
 
         new_wnb.apply_to(net);
 

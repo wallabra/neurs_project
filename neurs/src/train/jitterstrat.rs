@@ -103,7 +103,11 @@ where
         }
     }
 
-    fn avg_reference_fitness(&mut self, frame: &mut Box<dyn TrainingFrame>, net: &mut SimpleNeuralNetwork) -> Result<f32, String> {
+    fn avg_reference_fitness(
+        &mut self,
+        frame: &mut Box<dyn TrainingFrame>,
+        net: &mut SimpleNeuralNetwork,
+    ) -> Result<f32, String> {
         let mut fit = 0.0;
         let mut output = vec![0.0; net.output_size()?];
 

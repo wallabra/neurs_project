@@ -179,7 +179,10 @@ where
     }
 }
 
-impl<LT> LabeledLearningFrame<LT> where LT: TrainingLabel {
+impl<LT> LabeledLearningFrame<LT>
+where
+    LT: TrainingLabel,
+{
     pub fn avg_reference_fitness(&mut self, net: &mut SimpleNeuralNetwork) -> Result<f32, String> {
         let mut fit = 0.0;
         let mut output = vec![0.0; net.output_size()?];

@@ -83,7 +83,7 @@ mod tests {
 
         let strategy = WeightJitterStrat::new(WeightJitterStratOptions {
             apply_bad_jitters: false,
-            num_jitters: 30,
+            num_jitters: 100,
             jitter_width: 1.0,
             adaptive_jitter_width: Some(|_jw, mfit, _rfit| 0.01 - mfit * 1.5),
             jitter_width_falloff: 0.0,
@@ -102,14 +102,20 @@ mod tests {
 
         println!("Training xor network...");
 
-        for epoch in 1..=1000 {
-            let ref_fitness = frame.avg_reference_fitness(&mut trainer.reference_net).unwrap();
+        for epoch in 1..=500 {
+            let ref_fitness = frame
+                .avg_reference_fitness(&mut trainer.reference_net)
+                .unwrap();
             let best_fitness = trainer.epoch().unwrap();
 
             jitter_width *= 1.0 - jitter_width_falloff;
 
             if adaptive_jitter_width.is_some() {
-                jitter_width = adaptive_jitter_width.as_ref().unwrap()(jitter_width, best_fitness, ref_fitness);
+                jitter_width = adaptive_jitter_width.as_ref().unwrap()(
+                    jitter_width,
+                    best_fitness,
+                    ref_fitness,
+                );
             }
 
             println!(
@@ -129,7 +135,9 @@ mod tests {
                 vec![0.0, 0.0],
             ],
             |out: &[f32], inp: &[f32]| {
-                ((out[1] - out[0]) > 0.0) == ((inp[0] > 0.5) != (inp[1] > 0.5))
+                (out[1] - out[0]) * (
+                    ((inp[0] > 0.5) != (inp[1] > 0.5)) as u8 as f32 * 2.0 - 1.0
+                ) > 0.5
             },
         );
     }

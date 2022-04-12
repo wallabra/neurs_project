@@ -11,3 +11,5 @@ pub mod trainer;
 
 pub use interface::*;
 pub use trainer::*;
+#[cfg(test)]
+pub mod test_jitterstrat;

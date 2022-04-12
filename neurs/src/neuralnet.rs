@@ -27,10 +27,10 @@ pub struct NeuralLayer {
     pub biases: Vec<f32>,
 
     /// The input size of the layer.
-    pub input_size: u16,
+    pub input_size: usize,
 
     /// The output size of the layer.
-    pub output_size: u16,
+    pub output_size: usize,
 
     /// The product of the input and output sizes of the layer.
     pub area: u32,
@@ -41,7 +41,11 @@ impl NeuralLayer {
     /// sizes and an activation function.
     ///
     /// If `activation` is `None`, it will default to [relu].
-    pub fn new(input_size: u16, output_size: u16, activation: Option<NNActivation>) -> NeuralLayer {
+    pub fn new(
+        input_size: usize,
+        output_size: usize,
+        activation: Option<NNActivation>,
+    ) -> NeuralLayer {
         let activation = activation.unwrap_or(relu);
 
         let area: u32 = input_size as u32 * output_size as u32;
@@ -123,7 +127,7 @@ impl SimpleNeuralNetwork {
      * A list of activation Options is used. To use the same activation in
      * every layer, see [Self::new_simple_with_activation].
      */
-    pub fn new_simple(layer_sizes: &[u16], activations: &[Option<NNActivation>]) -> Self {
+    pub fn new_simple(layer_sizes: &[usize], activations: &[Option<NNActivation>]) -> Self {
         SimpleNeuralNetwork {
             layers: layer_sizes
                 .iter()
@@ -146,7 +150,7 @@ impl SimpleNeuralNetwork {
      * neurons proper.
      */
     pub fn new_simple_with_activation(
-        layer_sizes: &[u16],
+        layer_sizes: &[usize],
         activation: Option<NNActivation>,
     ) -> Self {
         Self::new_simple(layer_sizes, vec![activation; layer_sizes.len()].as_slice())
@@ -154,7 +158,7 @@ impl SimpleNeuralNetwork {
 
     /// Returns the input size of this network, as determined by its first
     /// layer.
-    pub fn input_size(&self) -> Result<u16, String> {
+    pub fn input_size(&self) -> Result<usize, String> {
         match self.layers.first() {
             None => Err(
                 "There are no layers in this network; input size could not be determined"
@@ -166,7 +170,7 @@ impl SimpleNeuralNetwork {
 
     /// Returns the output size of this network, as determined by its last
     /// layer.
-    pub fn output_size(&self) -> Result<u16, String> {
+    pub fn output_size(&self) -> Result<usize, String> {
         match self.layers.last() {
             None => Err(
                 "There are no layers in this network; output size could not be determined"

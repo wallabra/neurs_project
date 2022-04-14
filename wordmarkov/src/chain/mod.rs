@@ -3,7 +3,7 @@
  * the graph, as well as selectors.
  */
 
-pub mod chain;
+pub mod body;
 pub mod selectors;
 
 pub mod prelude;

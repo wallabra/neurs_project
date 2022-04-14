@@ -83,9 +83,9 @@ mod tests {
 
         let strategy = WeightJitterStrat::new(WeightJitterStratOptions {
             apply_bad_jitters: false,
-            num_jitters: 75,
+            num_jitters: 100,
             jitter_width: 1.0,
-            adaptive_jitter_width: Some(|_jw, mfit, _rfit| 0.01 - mfit * 1.2),
+            adaptive_jitter_width: Some(|_jw, mfit, _rfit| 0.01 - mfit * 1.4),
             jitter_width_falloff: 0.0,
             step_factor: 0.6,
             num_steps_per_epoch: num_cases,
@@ -102,7 +102,7 @@ mod tests {
 
         println!("Training xor network...");
 
-        for epoch in 1..=200 {
+        for epoch in 1..=250 {
             let ref_fitness = frame
                 .avg_reference_fitness(&mut trainer.reference_net)
                 .unwrap();

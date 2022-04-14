@@ -30,5 +30,5 @@ pub fn fast_sigmoid_signed(x: f32) -> f32 {
 /// "Unsigned" version (outputs range from 0 to 1), akin to the original
 /// logistic function.
 pub fn fast_sigmoid(x: f32) -> f32 {
-    x / (1.0 + f32::abs(x))
+    0.5 * (x / (1 + abs(x)) + 1)
 }

@@ -42,10 +42,10 @@ impl<'a> Token<'a> {
     }
 }
 
-impl<'a> Into<&'a str> for &Token<'a> {
+impl<'a> From<&Token<'a>> for &'a str {
     /// Converts this token into the equivalent string.
-    fn into(self) -> &'a str {
-        match self {
+    fn from(tok: &Token<'a>) -> Self {
+        match tok {
             Token::Word(s) => s,
             Token::Punct(s) => s,
             Token::White(s) => s,

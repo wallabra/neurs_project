@@ -1,7 +1,4 @@
 #![cfg(test)]
-/*!
- * Guarantee that the fundamental types defined in token.rs behave sanely.
- */
 
 use super::token::*;
 

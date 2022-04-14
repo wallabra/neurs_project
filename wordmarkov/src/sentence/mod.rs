@@ -7,4 +7,5 @@ pub mod lex;
 pub mod token;
 
 // Tests
+pub mod test_lex;
 pub mod test_token;

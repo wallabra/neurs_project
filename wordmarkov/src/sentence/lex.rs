@@ -13,16 +13,22 @@ enum LexingType {
     Empty,
 }
 
-pub struct LexingState<'a> {
+/**
+ * A structure that allows splitting a sentence into [Token]s.
+ */
+pub struct Lexer<'a> {
     from: &'a str,
     start: usize,
     head: usize,
     state: LexingType,
 }
 
-impl<'a> LexingState<'a> {
-    pub fn new(from: &'a str) -> LexingState<'a> {
-        LexingState {
+impl<'a> Lexer<'a> {
+    /**
+     * Make a new Lexer state from a string.
+     */
+    pub fn new(from: &'a str) -> Lexer<'a> {
+        Lexer {
             from,
             start: 0,
             head: 0,
@@ -72,7 +78,7 @@ impl<'a> LexingState<'a> {
     }
 }
 
-impl<'a> Iterator for LexingState<'a> {
+impl<'a> Iterator for Lexer<'a> {
     type Item = Token<'a>;
 
     fn next(&mut self) -> Option<Token<'a>> {
@@ -115,23 +121,4 @@ impl<'a> Iterator for LexingState<'a> {
             self.head += 1;
         }
     }
-}
-
-#[test]
-fn test_split_sentence() {
-    let sentence = "Nice tea, mate.";
-
-    let mut lexstate = LexingState::new(sentence);
-
-    assert_eq!(lexstate.next(), Some(Token::Begin));
-    assert_eq!(lexstate.next(), Some(Token::Word("Nice")));
-    assert_eq!(lexstate.next(), Some(Token::White(" ")));
-    assert_eq!(lexstate.next(), Some(Token::Word("tea")));
-    assert_eq!(lexstate.next(), Some(Token::Punct(",")));
-    assert_eq!(lexstate.next(), Some(Token::White(" ")));
-    assert_eq!(lexstate.next(), Some(Token::Word("mate")));
-    assert_eq!(lexstate.next(), Some(Token::Punct(".")));
-    assert_eq!(lexstate.next(), Some(Token::End));
-    assert_eq!(lexstate.next(), None);
-    assert_eq!(lexstate.next(), None);
 }

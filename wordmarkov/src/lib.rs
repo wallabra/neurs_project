@@ -5,3 +5,4 @@
  */
 
 pub mod sentence;
+pub mod chain;

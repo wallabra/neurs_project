@@ -25,18 +25,20 @@ fn test_chain_traversal() {
     let mut chain: MarkovChain = MarkovChain::new();
 
     chain.parse_sentence(
-        "a lamb ate a lamb made a lamb wear a little lamb with a lamb on top of lamb",
+        "a lamb ate a lamb made a lamb wear a little lamb with a lamb on top of that one lamb who lambed over lamb with a cute lamb",
     );
+
+    let max_len = 500;
 
     let new_sentence = chain
         .compose_sentence(
             MarkovSeed::Word("lamb"),
             &mut WeightedRandomSelector,
-            Some(100),
+            Some(max_len),
         )
         .unwrap();
 
-    assert!(new_sentence.len() < 100);
+    assert!(new_sentence.len() < max_len);
     assert!(new_sentence.to_string().contains("lamb"));
 
     println!("Composed sentence: {}", new_sentence);

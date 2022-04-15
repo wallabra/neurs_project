@@ -13,11 +13,13 @@ use std::fmt::Formatter;
 use std::rc::Rc;
 
 /// The direction in which to traverse the Markov chain.
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub enum MarkovTraverseDir {
     Forward,
     Reverse,
 }
 
+#[derive(Clone, Debug, PartialEq)]
 pub enum MarkovSeed<'a> {
     Word(&'a str),
     Id(usize),
@@ -350,6 +352,62 @@ impl MarkovChain {
         }
     }
 
+    fn _weighted_select<R>(
+        &self,
+        sel_type: SelectionType,
+        edges: &[usize],
+        weights: &[f32],
+        rng: &mut R,
+    ) -> &Edge
+    where
+        R: Rng,
+    {
+        match sel_type {
+            SelectionType::Lowest => {
+                edges
+                    .iter()
+                    .map(|e| &self.edge_list[*e])
+                    .zip(weights.iter())
+                    .reduce(|ewc, ewn| if ewc.1 < ewn.1 { ewc } else { ewn })
+                    .unwrap()
+                    .0
+            }
+
+            SelectionType::Highest => {
+                edges
+                    .iter()
+                    .map(|e| &self.edge_list[*e])
+                    .zip(weights.iter())
+                    .reduce(|ewc, ewn| if ewc.1 > ewn.1 { ewc } else { ewn })
+                    .unwrap()
+                    .0
+            }
+
+            SelectionType::WeightedRandom => {
+                let total: f32 = weights.iter().sum();
+                let pick = Uniform::new(0.0_f32, total).sample(rng);
+
+                let mut curr = 0.0;
+                let mut res = None;
+
+                for (edge, weight) in edges
+                    .iter()
+                    .map(|e| &self.edge_list[*e])
+                    .zip(weights.iter())
+                {
+                    curr += weight;
+
+                    if curr >= pick {
+                        res = Some(edge);
+                        break;
+                    }
+                }
+
+                res.unwrap()
+            }
+        }
+    }
+
     /**
      * Selects the word following the current one (`from`) based om the
      * criteria of a [MarkovSelector] (`selector`).
@@ -369,6 +427,8 @@ impl MarkovChain {
         selector: &mut dyn MarkovSelector,
         direction: MarkovTraverseDir,
     ) -> Result<(MarkovToken<'_>, MarkovToken<'_>, usize, usize), String> {
+        use MarkovTraverseDir::*;
+
         let mut rng = thread_rng();
 
         let from: usize = self.get_seed(seed, &mut rng)?;
@@ -410,56 +470,23 @@ impl MarkovChain {
 
         let sel_type = selector.selection_type();
 
-        let best_edge: &Edge = match sel_type {
-            SelectionType::Lowest => {
-                edges
-                    .iter()
-                    .map(|e| &self.edge_list[*e])
-                    .zip(weights.iter())
-                    .reduce(|ewc, ewn| if ewc.1 < ewn.1 { ewc } else { ewn })
-                    .unwrap()
-                    .0
-            }
+        let best_edge: &Edge = self._weighted_select(sel_type, edges, &weights, &mut rng);
 
-            SelectionType::Highest => {
-                edges
-                    .iter()
-                    .map(|e| &self.edge_list[*e])
-                    .zip(weights.iter())
-                    .reduce(|ewc, ewn| if ewc.1 > ewn.1 { ewc } else { ewn })
-                    .unwrap()
-                    .0
-            }
+        match direction {
+            Forward => Ok((
+                best_edge.get_dest(self),
+                best_edge.get_punct(self),
+                best_edge.dst_idx,
+                best_edge.pct_idx,
+            )),
 
-            SelectionType::WeightedRandom => {
-                let total: f32 = weights.iter().sum();
-                let pick = Uniform::new(0.0_f32, total).sample(&mut rng);
-
-                let mut curr = 0.0;
-                let mut res = None;
-
-                for (edge, weight) in edges
-                    .iter()
-                    .map(|e| &self.edge_list[*e])
-                    .zip(weights.iter())
-                {
-                    curr += weight;
-
-                    if curr >= pick {
-                        res = Some(edge);
-                    }
-                }
-
-                res.unwrap()
-            }
-        };
-
-        Ok((
-            best_edge.get_dest(self),
-            best_edge.get_punct(self),
-            best_edge.dst_idx,
-            best_edge.pct_idx,
-        ))
+            Reverse => Ok((
+                best_edge.get_source(self),
+                best_edge.get_punct(self),
+                best_edge.src_idx,
+                best_edge.pct_idx,
+            )),
+        }
     }
 
     /**
@@ -562,12 +589,14 @@ impl MarkovChain {
         max_len: Option<usize>,
     ) -> Result<TokenList<'a>, String> {
         use MarkovSeed::Id;
+        use MarkovToken::*;
         use MarkovTraverseDir::*;
 
         let mut rng = thread_rng();
-        let mut sentence: LinkedList<MarkovToken<'a>> = LinkedList::new();
 
         let seed = self.get_seed(seed, &mut rng)?;
+
+        let mut sentence: LinkedList<MarkovToken<'a>> = LinkedList::from([self.get_textlet(seed).unwrap()]);
 
         let mut len = self.get_textlet(seed).unwrap().len();
 
@@ -590,6 +619,11 @@ impl MarkovChain {
             len = new_len;
 
             sentence.push_front(punct);
+
+            if prev == Begin {
+                break;
+            }
+
             sentence.push_front(prev);
 
             curr_backward = prvidx;
@@ -597,7 +631,7 @@ impl MarkovChain {
 
         while curr_forward != self.begin() {
             let (next, punct, nxtidx, _) =
-                self.select_next_word(Id(curr_forward), selector, Reverse)?;
+                self.select_next_word(Id(curr_forward), selector, Forward)?;
 
             let new_len = len + punct.len() + next.len();
 
@@ -608,6 +642,11 @@ impl MarkovChain {
             len = new_len;
 
             sentence.push_back(punct);
+
+            if next == End {
+                break;
+            }
+
             sentence.push_back(next);
 
             curr_forward = nxtidx;

@@ -1,10 +1,14 @@
 [package]
 name = "cnmc"
-version = "0.1.0"
+description = "An advanced sentence generation model, which employs a Markov chain (wordmarkov) and some neural networks (neurs)"
+version = "0.1.0-pre0"
 edition = "2021"
+authors = [
+    "Gustavo Ramos \"Gustavo6046\" Rehermann <rehermann6046@gmail.com>"
+]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-neurs = { version = "0.1.0", path = "../neurs" }
-wordmarkov = { version = "0.1.0", path = "../wordmarkov" }
+neurs = { path = "../neurs" }
+wordmarkov = { path = "../wordmarkov" }

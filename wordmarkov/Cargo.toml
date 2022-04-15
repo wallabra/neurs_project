@@ -1,7 +1,11 @@
 [package]
 name = "wordmarkov"
+description = "A simple but flexible Markov chain library, speifically for text sentences, which handles punctuation and whitespace"
 version = "0.1.0"
 edition = "2021"
+authors = [
+    "Gustavo Ramos \"Gustavo6046\" Rehermann <rehermann6046@gmail.com>"
+]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

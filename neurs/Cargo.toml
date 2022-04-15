@@ -1,7 +1,11 @@
 [package]
 name = "neurs"
-version = "0.1.0"
+description = "A simple, feed-forward-only, but efficient, neural network and reinforcement learning library"
+version = "0.1.0-pre1"
 edition = "2021"
+authors = [
+    "Gustavo Ramos \"Gustavo6046\" Rehermann <rehermann6046@gmail.com>"
+]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

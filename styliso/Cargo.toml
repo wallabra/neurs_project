@@ -1,7 +1,7 @@
 [package]
 name = "styliso"
 description = "An experiment in isolating the style between images using autoencoders and neural networks."
-version = "0.1.0"
+version = "0.1.0-pre0"
 edition = "2021"
 authors = [
     "Gustavo Ramos \"Gustavo6046\" Rehermann <rehermann6046@gmail.com>"
@@ -11,6 +11,6 @@ authors = [
 
 [dependencies]
 color_space = "0.5.3"
-neurs = { version = "0.1.0", path = "../neurs" }
+neurs = { path = "../neurs" }
 png = "0.17.5"
 

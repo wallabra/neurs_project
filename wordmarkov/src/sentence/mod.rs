@@ -6,6 +6,8 @@
 pub mod lex;
 pub mod token;
 
+pub mod prelude;
+
 // Tests
-pub mod test_lex;
-pub mod test_token;
+mod test_lex;
+mod test_token;

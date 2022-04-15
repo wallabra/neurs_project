@@ -8,7 +8,7 @@
  * A token – can be either a Word or a Punct, or the beginning or end of a
  * parsed sentence.
  */
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub enum Token<'a> {
     /// A word, a sequence of characters bounded by non-words.
     ///
@@ -16,10 +16,7 @@ pub enum Token<'a> {
     /// [Token::Begin] or [Token::End].
     Word(&'a str),
 
-    /// Whitespace.
-    White(&'a str),
-
-    /// Punctuation.
+    /// Punctuation and whitespace.
     Punct(&'a str),
 
     /// The beginning of a sentence.
@@ -48,7 +45,6 @@ impl<'a> From<&Token<'a>> for &'a str {
         match tok {
             Token::Word(s) => s,
             Token::Punct(s) => s,
-            Token::White(s) => s,
             Token::Begin => "",
             Token::End => "",
         }

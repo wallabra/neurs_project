@@ -6,11 +6,13 @@ pub use super::token::Token;
 #[derive(PartialEq, Debug)]
 enum LexingType {
     Begin,
-    White,
     Punct,
     Word,
     End,
     Empty,
+
+    PreEnd,
+    PostBegin,
 }
 
 /**
@@ -38,7 +40,6 @@ impl<'a> Lexer<'a> {
 
     fn state_wrap(&self, s: &'a str) -> Token<'a> {
         match self.state {
-            LexingType::White => Token::White(s),
             LexingType::Punct => Token::Punct(s),
             LexingType::Word => Token::Word(s),
             LexingType::Begin => Token::Begin,
@@ -46,6 +47,10 @@ impl<'a> Lexer<'a> {
             LexingType::Empty => {
                 panic!("Internal code error: tried to use state_wrap on an exhausted LexingState!")
             }
+
+            // special cases
+            LexingType::PostBegin => Token::Punct(s),
+            LexingType::PreEnd => Token::Punct(s),
         }
     }
 
@@ -63,15 +68,17 @@ impl<'a> Lexer<'a> {
 
     fn char_type(&self, char: Option<char>) -> LexingType {
         if char.is_none() {
-            return LexingType::End;
+            if self.state == LexingType::Punct {
+                return LexingType::End;
+            }
+
+            return LexingType::PreEnd;
         }
 
         let char = char.unwrap();
 
-        if char.is_ascii_punctuation() {
+        if char.is_ascii_punctuation() || char.is_whitespace() {
             LexingType::Punct
-        } else if char.is_whitespace() {
-            LexingType::White
         } else {
             LexingType::Word
         }
@@ -86,9 +93,19 @@ impl<'a> Iterator for Lexer<'a> {
             return None;
         }
 
+        if LexingType::Begin == self.state {
+            self.state = LexingType::PostBegin;
+            return Some(Token::Begin);
+        }
+
         if LexingType::End == self.state {
             self.state = LexingType::Empty;
             return Some(Token::End);
+        }
+
+        if LexingType::PreEnd == self.state {
+            self.state = LexingType::End;
+            return Some(Token::Punct(""));
         }
 
         let mut chars = self.from.chars().skip(self.head);
@@ -109,8 +126,15 @@ impl<'a> Iterator for Lexer<'a> {
                 );
             }
 
-            if ctype != self.state {
+            if &ctype
+                != (if self.state == LexingType::PostBegin {
+                    &LexingType::Punct
+                } else {
+                    &self.state
+                })
+            {
                 let res = self.peek_next();
+
                 self.state = ctype;
 
                 if res != Token::Begin {

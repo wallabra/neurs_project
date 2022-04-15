@@ -28,10 +28,10 @@ pub trait MarkovSelector {
     /**
      * The weight of a particular link.
      *
-     * A numeric value. Can be interpreted as a probability, or as a decision
-     * weight, depending on the return value of [selection_type]. If the latter
-     * is the case, the highest (or lowest!) weight is always the final
-     * selection.
+     * A numeric value. Can be interpreted as either a probability or a
+     * preference, depending on the return value of [Self::selection_type()].
+     * If the latter is the case, the highest (or lowest!) weight is always the
+     * final selection.
      *
      * Stateful.
      */
@@ -45,7 +45,7 @@ pub trait MarkovSelector {
 
     /**
      * Returns the [SelectionType] of this Selector; this will decide how the
-     * weight returned by [weight] should be interpreted.
+     * weight returned by [Self::weight()] should be interpreted.
      */
     fn selection_type(&mut self) -> SelectionType;
 }

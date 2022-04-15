@@ -66,7 +66,7 @@ impl<'a> From<&LexedToken<'a>> for MarkovToken<'a> {
 
 /// A Markov token, but owned. Only used from MarkovChain.
 #[derive(PartialEq, Debug)]
-enum MarkovTokenOwned {
+pub enum MarkovTokenOwned {
     Begin,
     End,
     Textlet(Rc<str>),
@@ -495,7 +495,8 @@ impl MarkovChain {
      * Includes the internal tokens [MarkovTokenOwned::Begin] and
      * [MarkovTokenOwned::End].
      *
-     * Should be smaller than or, in extreme cases, equal to, [num_textlets()].
+     * Should be smaller than or, in extreme cases, equal to,
+     * [Self::num_textlets()].
      */
     pub fn num_words(&self) -> usize {
         self.words.len()
@@ -596,7 +597,8 @@ impl MarkovChain {
 
         let seed = self.get_seed(seed, &mut rng)?;
 
-        let mut sentence: LinkedList<MarkovToken<'a>> = LinkedList::from([self.get_textlet(seed).unwrap()]);
+        let mut sentence: LinkedList<MarkovToken<'a>> =
+            LinkedList::from([self.get_textlet(seed).unwrap()]);
 
         let mut len = self.get_textlet(seed).unwrap().len();
 

@@ -91,8 +91,10 @@ impl<'a> Iterator for Lexer<'a> {
             return Some(Token::End);
         }
 
+        let mut chars = self.from.chars().skip(self.head);
+
         loop {
-            let char = self.from.chars().nth(self.head);
+            let char = chars.next();
             let ctype = self.char_type(char);
 
             if cfg!(test) {

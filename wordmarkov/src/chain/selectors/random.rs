@@ -1,12 +1,14 @@
 //! Random and weighted random selectors.
 
+use crate::prelude::MarkovTraverseDir;
+
 use super::super::body::MarkovToken;
 use super::interface::{MarkovSelector, SelectionType};
 
-struct WeightedRandomSelector;
+pub struct WeightedRandomSelector;
 
 impl MarkovSelector for WeightedRandomSelector {
-    fn reset(&mut self) {}
+    fn reset(&mut self, _dir: MarkovTraverseDir) {}
 
     fn weight<'a>(
         &mut self,
@@ -23,10 +25,10 @@ impl MarkovSelector for WeightedRandomSelector {
     }
 }
 
-struct NaiveRandomSelector;
+pub struct NaiveRandomSelector;
 
 impl MarkovSelector for NaiveRandomSelector {
-    fn reset(&mut self) {}
+    fn reset(&mut self, _dir: MarkovTraverseDir) {}
 
     fn weight<'a>(
         &mut self,

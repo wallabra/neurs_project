@@ -1,3 +1,43 @@
 #![cfg(test)]
 
-use super::body::*;
+use super::prelude::*;
+
+#[test]
+fn test_chain_parsing() {
+    let mut chain: MarkovChain = MarkovChain::new();
+
+    chain.parse_sentence("Mary had a little lamb");
+
+    assert_eq!(chain.num_words(), 7); // BEGIN and END count!
+    assert_eq!(chain.num_edges(), 6);
+    assert_eq!(chain.num_textlets(), 9);
+
+    // Order usually doesn't really matter, but psst,
+    // if it's well-defined behaviour, might as well test
+    // it. :)
+    assert_eq!(chain.try_get_textlet_index(""), Some(2));
+    assert_eq!(chain.try_get_textlet_index(" "), Some(4));
+    assert_eq!(chain.try_get_textlet_index("."), None);
+}
+
+#[test]
+fn test_chain_traversal() {
+    let mut chain: MarkovChain = MarkovChain::new();
+
+    chain.parse_sentence(
+        "a lamb ate a lamb made a lamb wear a little lamb with a lamb on top of lamb",
+    );
+
+    let new_sentence = chain
+        .compose_sentence(
+            MarkovSeed::Word("lamb"),
+            &mut WeightedRandomSelector,
+            Some(100),
+        )
+        .unwrap();
+
+    assert!(new_sentence.len() < 100);
+    assert!(new_sentence.to_string().contains("lamb"));
+
+    println!("Composed sentence: {}", new_sentence);
+}

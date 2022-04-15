@@ -3,7 +3,7 @@
  * deciding the next state of a Markov chain.
  */
 
-use crate::prelude::MarkovToken;
+use crate::prelude::{MarkovToken, MarkovTraverseDir};
 
 /**
  * The way in which the weights returned by [MarkovSelector::weight] should be
@@ -23,7 +23,7 @@ pub trait MarkovSelector {
      *
      * Must always be called before composing a new sentence.
      */
-    fn reset(&mut self);
+    fn reset(&mut self, direction: MarkovTraverseDir);
 
     /**
      * The weight of a particular link.

@@ -7,13 +7,47 @@ use super::selectors::interface::SelectionType;
 use crate::sentence::lex::{Lexer, Token as LexedToken};
 use rand::{distributions::Uniform, prelude::*};
 use std::collections::HashMap;
+use std::collections::LinkedList;
+use std::fmt::Display;
+use std::fmt::Formatter;
+use std::rc::Rc;
+
+/// The direction in which to traverse the Markov chain.
+pub enum MarkovTraverseDir {
+    Forward,
+    Reverse,
+}
+
+pub enum MarkovSeed<'a> {
+    Word(&'a str),
+    Id(usize),
+    Random,
+}
 
 /// A Markov token.
-#[derive(Debug)]
+#[derive(PartialEq, Debug)]
 pub enum MarkovToken<'a> {
     Begin,
     End,
     Textlet(&'a str),
+}
+
+impl<'a> MarkovToken<'a> {
+    fn string_ref(&'a self) -> &'a str {
+        match self {
+            MarkovToken::Textlet(s) => s,
+            MarkovToken::Begin => "",
+            MarkovToken::End => "",
+        }
+    }
+
+    fn len(&self) -> usize {
+        match self {
+            MarkovToken::Textlet(s) => s.len(),
+            MarkovToken::Begin => 0,
+            MarkovToken::End => 0,
+        }
+    }
 }
 
 impl<'a> From<&LexedToken<'a>> for MarkovToken<'a> {
@@ -29,11 +63,11 @@ impl<'a> From<&LexedToken<'a>> for MarkovToken<'a> {
 }
 
 /// A Markov token, but owned. Only used from MarkovChain.
-#[derive(Debug)]
+#[derive(PartialEq, Debug)]
 enum MarkovTokenOwned {
     Begin,
     End,
-    Textlet(String),
+    Textlet(Rc<str>),
 }
 
 impl<'a> From<&'a MarkovTokenOwned> for MarkovToken<'a> {
@@ -56,13 +90,36 @@ impl<'a> From<&'a MarkovTokenOwned> for &'a str {
     }
 }
 
-impl<'a> From<MarkovToken<'a>> for &'a str {
-    fn from(token: MarkovToken<'a>) -> Self {
-        match token {
-            MarkovToken::Textlet(s) => s,
-            MarkovToken::Begin => "",
-            MarkovToken::End => "",
+impl<'a> From<&'a MarkovToken<'a>> for &'a str {
+    fn from(token: &'a MarkovToken<'a>) -> Self {
+        token.string_ref()
+    }
+}
+
+/// A list of [MarkovToken]s; a sentence.
+pub struct TokenList<'a>(LinkedList<MarkovToken<'a>>);
+
+impl<'a> TokenList<'a> {
+    pub fn iter(&self) -> std::collections::linked_list::Iter<MarkovToken> {
+        self.0.iter()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.iter().any(|x| x.len() > 0)
+    }
+
+    pub fn len(&self) -> usize {
+        self.iter().map(|x| x.len()).sum()
+    }
+}
+
+impl<'a> Display for TokenList<'a> {
+    fn fmt(&self, fmt: &mut Formatter) -> Result<(), std::fmt::Error> {
+        for x in &self.0 {
+            fmt.write_str(x.string_ref())?;
         }
+
+        Ok(())
     }
 }
 
@@ -101,32 +158,33 @@ impl Edge {
 /**
  * A graph that links tokens together.
  */
-pub struct MarkovChain<'a> {
+pub struct MarkovChain {
     textlet_bag: Vec<MarkovTokenOwned>,
-    textlet_indices: HashMap<&'a str, usize>,
+    textlet_indices: HashMap<Rc<str>, usize>,
     words: Vec<usize>,
 
-    edges: HashMap<usize, Vec<Edge>>,
-    reverse_edges: HashMap<usize, Vec<&'a Edge>>,
+    edge_list: Vec<Edge>,
+    edges: HashMap<usize, Vec<usize>>,
+    reverse_edges: HashMap<usize, Vec<usize>>,
 }
 
-impl<'a> Default for MarkovChain<'a> {
+impl Default for MarkovChain {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<'a> MarkovChain<'a> {
+impl MarkovChain {
     /**
      * Makes a new empty [MarkovChain].
      */
-    pub fn new() -> MarkovChain<'a> {
+    pub fn new() -> MarkovChain {
         MarkovChain {
             textlet_bag: vec![MarkovTokenOwned::Begin, MarkovTokenOwned::End],
-
             textlet_indices: HashMap::new(),
-
             words: Vec::new(),
+
+            edge_list: Vec::new(),
             edges: HashMap::new(),
             reverse_edges: HashMap::new(),
         }
@@ -136,27 +194,19 @@ impl<'a> MarkovChain<'a> {
      * Gets the index of a textlet in this chain; if the textlet is not found,
      * makes a new one and returns that instead.
      */
-    pub fn ensure_textlet_index<'b>(&'b mut self, word: &str) -> usize
-    where
-        'b: 'a,
-    {
+    pub fn ensure_textlet_index(&mut self, word: &str) -> usize {
         match self.textlet_indices.get(word) {
             Some(a) => *a,
             None => {
                 let i = self.textlet_bag.len();
+                let rcword: Rc<str> = Rc::from(word);
 
                 self.textlet_bag
-                    .push(MarkovTokenOwned::Textlet(word.to_string()));
+                    .push(MarkovTokenOwned::Textlet(rcword.clone()));
 
-                let ownedtoken = self.textlet_bag.last().unwrap();
+                self.textlet_indices.insert(rcword, i);
 
-                if let MarkovTokenOwned::Textlet(s) = ownedtoken {
-                    self.textlet_indices.insert(s, i);
-
-                    return i;
-                }
-
-                unreachable!()
+                i
             }
         }
     }
@@ -166,10 +216,7 @@ impl<'a> MarkovChain<'a> {
      *
      * If one does not exist, make one and return that instead.
      */
-    pub fn ensure_textlet_from_token<'b>(&'b mut self, token: LexedToken<'b>) -> usize
-    where
-        'b: 'a,
-    {
+    pub fn ensure_textlet_from_token(&mut self, token: LexedToken) -> usize {
         match token {
             LexedToken::Begin => 0,
             LexedToken::End => 1,
@@ -183,15 +230,59 @@ impl<'a> MarkovChain<'a> {
      *
      * If the textlet is not registered, returns None.
      */
-    pub fn try_get_textlet_index(&'a self, word: &str) -> Option<usize> {
+    pub fn try_get_textlet_index(&self, word: &str) -> Option<usize> {
         self.textlet_indices.get(word).copied()
     }
 
     /**
      * Gets the [MarkovToken] of a textlet by its index.
      */
-    pub fn get_textlet(&'a self, index: usize) -> Option<MarkovToken<'a>> {
-        self.textlet_bag.get(index).map(|a| MarkovToken::from(a))
+    pub fn get_textlet(&self, index: usize) -> Option<MarkovToken<'_>> {
+        self.textlet_bag.get(index).map(MarkovToken::from)
+    }
+
+    fn push_new_edge(
+        &mut self,
+        from: usize,
+        to: usize,
+        punct: usize,
+        hits: Option<usize>,
+    ) -> usize {
+        let edge = Edge {
+            src_idx: from,
+            dst_idx: to,
+            hits: hits.unwrap_or(1),
+            pct_idx: punct,
+        };
+
+        let idx = self.edge_list.len();
+        self.edge_list.push(edge);
+
+        idx
+    }
+
+    fn add_reverse_edge(&mut self, edge_idx: usize) {
+        let edge = &self.edge_list[edge_idx];
+
+        match self.reverse_edges.get_mut(&edge.dst_idx) {
+            None => {
+                let rev_vec = vec![edge_idx];
+
+                self.reverse_edges.insert(edge.dst_idx, rev_vec);
+            }
+
+            Some(rev_vec) => {
+                for oedge in rev_vec.iter() {
+                    let oedge = self.edge_list.get(*oedge).unwrap();
+
+                    if edge.src_idx == oedge.src_idx && edge.pct_idx == oedge.pct_idx {
+                        return;
+                    }
+                }
+
+                rev_vec.push(edge_idx);
+            }
+        }
     }
 
     /**
@@ -203,7 +294,7 @@ impl<'a> MarkovChain<'a> {
      * For both `from` and `to`, if the index is not found in the
      * `self.words` list, it will be added to it.
      */
-    pub fn register_edge(&'a mut self, from: usize, to: usize, punct: usize) {
+    pub fn register_edge(&mut self, from: usize, to: usize, punct: usize) {
         for item in [from, to] {
             if !self.words.contains(&item) {
                 self.words.push(item);
@@ -211,67 +302,50 @@ impl<'a> MarkovChain<'a> {
         }
 
         if let Some(edgevec) = self.edges.get_mut(&from) {
-            for edge in edgevec.iter_mut() {
+            for edge in edgevec.iter() {
+                let edge: &mut Edge = self.edge_list.get_mut(*edge).unwrap();
+
                 if edge.dst_idx == to && edge.pct_idx == punct {
                     edge.hits += 1;
                     return;
                 }
             }
+        }
 
-            edgevec.push(Edge {
-                src_idx: from,
-                dst_idx: to,
-                hits: 1,
-                pct_idx: punct,
-            });
+        let idx = self.push_new_edge(from, to, punct, None);
+        self.edges.insert(from, vec![idx]);
 
-            let edge = self.edges.get(&from).unwrap().last().unwrap();
-
-            match self.reverse_edges.get_mut(&edge.dst_idx) {
-                None => {
-                    let rev_vec = vec![edge];
-
-                    self.reverse_edges.insert(edge.dst_idx, rev_vec);
-                }
-
-                Some(rev_vec) => {
-                    for oedge in rev_vec.iter() {
-                        if edge.src_idx == oedge.src_idx && edge.pct_idx == oedge.pct_idx {
-                            return;
-                        }
-                    }
-
-                    rev_vec.push(edge);
-                }
-            }
+        if let Some(edgevec) = self.edges.get_mut(&from) {
+            edgevec.push(idx);
         } else {
-            let edge = Edge {
-                src_idx: from,
-                dst_idx: to,
-                hits: 1,
-                pct_idx: punct,
-            };
+            self.edges.insert(from, vec![idx]);
+        }
 
-            self.edges.insert(from, vec![edge]);
+        self.add_reverse_edge(idx);
+    }
 
-            let edge = self.edges.get(&from).unwrap().last().unwrap();
+    fn get_seed<T: Rng>(&self, seed: MarkovSeed, rng: &mut T) -> Result<usize, String> {
+        use MarkovSeed::*;
 
-            match self.reverse_edges.get_mut(&edge.dst_idx) {
-                None => {
-                    let rev_vec = vec![edge];
+        match seed {
+            Word(seed) => {
+                let from = self.try_get_textlet_index(seed);
 
-                    self.reverse_edges.insert(edge.dst_idx, rev_vec);
+                if from.is_none() {
+                    return Err(format!(
+                        "Seed word {:?} not found in this Markov chain!",
+                        seed
+                    ));
                 }
 
-                Some(rev_vec) => {
-                    for oedge in rev_vec.iter() {
-                        if edge.src_idx == oedge.src_idx && edge.pct_idx == oedge.pct_idx {
-                            return;
-                        }
-                    }
+                Ok(from.unwrap())
+            }
 
-                    rev_vec.push(edge);
-                }
+            Id(seed) => Ok(seed),
+
+            Random => {
+                let from: usize = Uniform::new(0, self.words.len()).sample(rng);
+                Ok(self.words[from])
             }
         }
     }
@@ -280,36 +354,29 @@ impl<'a> MarkovChain<'a> {
      * Selects the word following the current one (`from`) based om the
      * criteria of a [MarkovSelector] (`selector`).
      *
-     * Returns a tuple (`dest`, `inbetween`) - the second item is a mix of
-     * whitespace and punctuation lying between `from` and `dest`.
+     * Returns a tuple (`dest`, `inbetween`, `dest_idx`, `inbetween_idx`).
+     * The first two items can be converted into strings because MarkovToken
+     * has Into<&str>. The last two items are the corresponding internal
+     * indices, which can be reused in functions which take `usize`.
      *
-     * Simply concatenate `from` with `inbetween` with `dest.into()`, in
-     * that order.
+     * `inbetween` is all of the whitespace and punctuation lying between
+     * `from` and `dest`. Simply concatenate `from` with `inbetween.into()`
+     * with `dest.into()`, in that order.
      */
     pub fn select_next_word(
-        &'a self,
-        seed: Option<&str>,
+        &self,
+        seed: MarkovSeed,
         selector: &mut dyn MarkovSelector,
-    ) -> Result<(MarkovToken<'a>, &str), String> {
+        direction: MarkovTraverseDir,
+    ) -> Result<(MarkovToken<'_>, MarkovToken<'_>, usize, usize), String> {
         let mut rng = thread_rng();
 
-        let from: usize = if let Some(seed) = seed {
-            let from = self.try_get_textlet_index(seed);
+        let from: usize = self.get_seed(seed, &mut rng)?;
 
-            if from.is_none() {
-                return Err(format!(
-                    "Seed word {:?} not found in this Markov chain!",
-                    seed
-                ));
-            }
-
-            from.unwrap()
-        } else {
-            let from: usize = Uniform::new(0, self.words.len()).sample(&mut rng);
-            self.words[from]
+        let edges = match direction {
+            MarkovTraverseDir::Forward => self.edges.get(&from),
+            MarkovTraverseDir::Reverse => self.reverse_edges.get(&from),
         };
-
-        let edges = self.edges.get(&from);
 
         if edges.is_none() {
             return Err(format!(
@@ -324,11 +391,15 @@ impl<'a> MarkovChain<'a> {
             return Err(format!("Seed textlet {:?} is not connected to anything in this Markov chain, but in a weird way!", self.get_textlet(from)));
         }
 
-        let mut weights: Vec<f32> = Vec::with_capacity(edges.len());
+        let mut weights: Vec<f32> = vec![0.0; edges.len()];
 
-        selector.reset();
+        selector.reset(direction);
 
-        for (edge, weight) in edges.iter().zip(weights.iter_mut()) {
+        for (edge, weight) in edges
+            .iter()
+            .map(|e| &self.edge_list[*e])
+            .zip(weights.iter_mut())
+        {
             *weight = selector.weight(
                 &edge.get_source(self),
                 &edge.get_dest(self),
@@ -339,10 +410,11 @@ impl<'a> MarkovChain<'a> {
 
         let sel_type = selector.selection_type();
 
-        let best_edge: &'a Edge = match sel_type {
+        let best_edge: &Edge = match sel_type {
             SelectionType::Lowest => {
                 edges
                     .iter()
+                    .map(|e| &self.edge_list[*e])
                     .zip(weights.iter())
                     .reduce(|ewc, ewn| if ewc.1 < ewn.1 { ewc } else { ewn })
                     .unwrap()
@@ -352,6 +424,7 @@ impl<'a> MarkovChain<'a> {
             SelectionType::Highest => {
                 edges
                     .iter()
+                    .map(|e| &self.edge_list[*e])
                     .zip(weights.iter())
                     .reduce(|ewc, ewn| if ewc.1 > ewn.1 { ewc } else { ewn })
                     .unwrap()
@@ -365,7 +438,11 @@ impl<'a> MarkovChain<'a> {
                 let mut curr = 0.0;
                 let mut res = None;
 
-                for (edge, weight) in edges.iter().zip(weights.iter()) {
+                for (edge, weight) in edges
+                    .iter()
+                    .map(|e| &self.edge_list[*e])
+                    .zip(weights.iter())
+                {
                     curr += weight;
 
                     if curr >= pick {
@@ -379,18 +456,49 @@ impl<'a> MarkovChain<'a> {
 
         Ok((
             best_edge.get_dest(self),
-            match best_edge.get_punct(self) {
-                MarkovToken::Textlet(a) => a,
-                _ => unreachable!(),
-            },
+            best_edge.get_punct(self),
+            best_edge.dst_idx,
+            best_edge.pct_idx,
         ))
+    }
+
+    /**
+     * The number of words in this chain.
+     *
+     * Includes the internal tokens [MarkovTokenOwned::Begin] and
+     * [MarkovTokenOwned::End].
+     *
+     * Should be smaller than or, in extreme cases, equal to, [num_textlets()].
+     */
+    pub fn num_words(&self) -> usize {
+        self.words.len()
+    }
+
+    /**
+     * The number of textlets in this chain.
+     *
+     * Includes unique instances of whitespace or punctuation, as well as the
+     * internal tokens [MarkovTokenOwned::Begin] and [MarkovTokenOwned::End].
+     */
+    pub fn num_textlets(&self) -> usize {
+        self.textlet_bag.len()
+    }
+
+    /**
+     * The number of [Edge]s registered in this chain.
+     *
+     * Includes edges connected to the internal tokens
+     * [MarkovTokenOwned::Begin] and [MarkovTokenOwned::End].
+     */
+    pub fn num_edges(&self) -> usize {
+        self.edge_list.len()
     }
 
     /**
      * Parse a sentence, registering textlets and edges
      * for it.
      */
-    pub fn parse_sentence(&'a mut self, sentence: &'a str) {
+    pub fn parse_sentence(&mut self, sentence: &str) {
         let mut lexer = Lexer::new(sentence);
         let mut curr_token = lexer.next();
 
@@ -409,11 +517,11 @@ impl<'a> MarkovChain<'a> {
             let punct = punct.unwrap();
             let next_token = next_token.unwrap();
 
+            to_register.push((token, punct, next_token.clone()));
+
             if next_token == LexedToken::End {
                 break;
             }
-
-            to_register.push((token, punct, next_token.clone()));
 
             curr_token = Some(next_token);
         }
@@ -425,5 +533,86 @@ impl<'a> MarkovChain<'a> {
 
             self.register_edge(src, dst, pct);
         }
+    }
+
+    /// Get the textlet identifier for [MarkovTokenOwned::Begin].
+    pub fn begin(&self) -> usize {
+        self.textlet_bag
+            .iter()
+            .position(|a| a == &MarkovTokenOwned::Begin)
+            .unwrap()
+    }
+
+    /// Get the textlet identifier for [MarkovTokenOwned::End].
+    pub fn end(&self) -> usize {
+        self.textlet_bag
+            .iter()
+            .position(|a| a == &MarkovTokenOwned::End)
+            .unwrap()
+    }
+
+    /**
+     * Composes a sentence by traversing this chain forward and backward from a
+     * given 'seed word'.
+     */
+    pub fn compose_sentence<'a>(
+        &'a self,
+        seed: MarkovSeed,
+        selector: &mut dyn MarkovSelector,
+        max_len: Option<usize>,
+    ) -> Result<TokenList<'a>, String> {
+        use MarkovSeed::Id;
+        use MarkovTraverseDir::*;
+
+        let mut rng = thread_rng();
+        let mut sentence: LinkedList<MarkovToken<'a>> = LinkedList::new();
+
+        let seed = self.get_seed(seed, &mut rng)?;
+
+        let mut len = self.get_textlet(seed).unwrap().len();
+
+        let mut curr_backward = seed;
+        let mut curr_forward = seed;
+
+        let capped = max_len.is_some();
+        let max_half_len: Option<usize> = max_len.map(|x| x / 2);
+
+        while curr_backward != self.begin() {
+            let (prev, punct, prvidx, _) =
+                self.select_next_word(Id(curr_backward), selector, Reverse)?;
+
+            let new_len = len + punct.len() + prev.len();
+
+            if capped && new_len > max_half_len.unwrap() {
+                break;
+            }
+
+            len = new_len;
+
+            sentence.push_front(punct);
+            sentence.push_front(prev);
+
+            curr_backward = prvidx;
+        }
+
+        while curr_forward != self.begin() {
+            let (next, punct, nxtidx, _) =
+                self.select_next_word(Id(curr_forward), selector, Reverse)?;
+
+            let new_len = len + punct.len() + next.len();
+
+            if capped && new_len > max_len.unwrap() {
+                break;
+            }
+
+            len = new_len;
+
+            sentence.push_back(punct);
+            sentence.push_back(next);
+
+            curr_forward = nxtidx;
+        }
+
+        Ok(TokenList(sentence))
     }
 }

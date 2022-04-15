@@ -114,7 +114,7 @@ impl<'a> Iterator for Lexer<'a> {
             let char = chars.next();
             let ctype = self.char_type(char);
 
-            if cfg!(test) {
+            /*if cfg!(test) {
                 println!(
                     "{}..={}\t {:?}\t | {:?} \t{:?}\t ({:?})",
                     self.start,
@@ -124,7 +124,7 @@ impl<'a> Iterator for Lexer<'a> {
                     ctype,
                     self.peek_next()
                 );
-            }
+            }*/
 
             if &ctype
                 != (if self.state == LexingType::PostBegin {

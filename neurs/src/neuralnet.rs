@@ -10,7 +10,10 @@ use super::activations::relu;
 use rand::prelude::*;
 use rand_distr::*;
 
-type NNActivation = fn(f32) -> f32;
+/**
+ * A neural network activation function.
+ */
+pub type NNActivation = fn(f32) -> f32;
 
 /**
  * A simple dense layer.

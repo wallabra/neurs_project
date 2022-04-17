@@ -2,7 +2,7 @@
  * Code for the Trainer, the orchestration structore of neural network
  * training.
  */
-use super::super::neuralnet::{NeuralLayer, SimpleNeuralNetwork};
+use super::super::neuralnet::SimpleNeuralNetwork;
 use super::interface::{TrainingFrame, TrainingStrategy};
 
 /**
@@ -11,11 +11,11 @@ use super::interface::{TrainingFrame, TrainingStrategy};
  * Holds the state of training; a current network, a [TrainingFrame]
  * and a [TrainingStrategy].
  */
-pub struct Trainer {
+pub struct Trainer<'a> {
     /**
      * The current reference neural network of this trainer.
      */
-    pub reference_net: SimpleNeuralNetwork,
+    pub reference_net: &'a mut SimpleNeuralNetwork,
 
     /**
      * The current training frame of this trainer.
@@ -30,43 +30,18 @@ pub struct Trainer {
     pub strategy: Box<dyn TrainingStrategy>,
 }
 
-impl Trainer {
+impl<'a> Trainer<'a> {
     /**
-     * Create a new Trainer with a randomly initialized neural network.
-     *
-     * This is pretty much starting from square one.
-     *
-     * Provide a function that can initialize the neural network's
-     * structure to your liking; it takes no arguments, but should
-     * return a list of layers, usually newly constructed ones (that,
-     * as such, contain random weights and biases).
+     * Refer to an existing reference-counted neural network, and make it this
+     * trainer's reference network.
      */
-    pub fn new_random(
-        layer_initializer: fn() -> Vec<NeuralLayer>,
-        frame: Box<dyn TrainingFrame>,
-        strategy: Box<dyn TrainingStrategy>,
-    ) -> Trainer {
-        let mut new_network = SimpleNeuralNetwork { layers: vec![] };
-
-        new_network.layers.append(&mut layer_initializer());
-
-        Trainer {
-            reference_net: new_network,
-            frame,
-            strategy,
-        }
-    }
-
-    /**
-     * Copy an existing neural network and make it this trainer's reference network.
-     */
-    pub fn new_from_net(
-        network: &SimpleNeuralNetwork,
+    pub fn new(
+        network: &'a mut SimpleNeuralNetwork,
         frame: Box<dyn TrainingFrame>,
         strategy: Box<dyn TrainingStrategy>,
     ) -> Trainer {
         Trainer {
-            reference_net: network.clone(),
+            reference_net: network,
             frame,
             strategy,
         }
@@ -78,7 +53,6 @@ impl Trainer {
      * Should return the best fitness arising from this epoch.
      */
     pub fn epoch(&mut self) -> Result<f32, String> {
-        self.strategy
-            .epoch(&mut self.reference_net, &mut self.frame)
+        self.strategy.epoch(self.reference_net, &mut self.frame)
     }
 }

@@ -60,7 +60,7 @@ mod tests {
 
     #[test]
     fn test_jitter_training_xor() {
-        let net = neuralnet::SimpleNeuralNetwork::new_simple_with_activation(
+        let mut net = neuralnet::SimpleNeuralNetwork::new_simple_with_activation(
             &[2, 3, 2],
             Some(activations::fast_sigmoid),
         );
@@ -96,7 +96,7 @@ mod tests {
         let adaptive_jitter_width = strategy.adaptive_jitter_width.clone();
 
         let mut trainer =
-            trainer::Trainer::new_from_net(&net, Box::from(frame.clone()), Box::from(strategy));
+            trainer::Trainer::new(&mut net, Box::from(frame.clone()), Box::from(strategy));
 
         println!("Trainer initialized successfully!");
 

@@ -48,7 +48,7 @@ impl WordVectorizer {
 
             encoder: SimpleNeuralNetwork::new_simple_with_activation(
                 &[
-                    2 + alphabet_size * conv_order,
+                    2 + alphabet_size * conv_order + out_vec_size,
                     2 * alphabet_size * conv_order,
                     3 * out_vec_size,
                     out_vec_size,
@@ -60,8 +60,8 @@ impl WordVectorizer {
                 &[
                     2 + out_vec_size,
                     3 * out_vec_size,
-                    2 * alphabet_size * conv_order,
-                    alphabet_size * conv_order,
+                    2 * (out_vec_size + alphabet_size),
+                    alphabet_size + out_vec_size,
                 ],
                 activation.or(Some(activations::fast_sigmoid)),
             ),
@@ -97,7 +97,6 @@ impl WordVectorizer {
         &self,
         inputs: &mut [f32],
         curr_out: &mut [f32],
-        output: &mut [f32],
         word: &str,
         curr: usize,
     ) -> Result<(), String> {
@@ -106,10 +105,7 @@ impl WordVectorizer {
 
         self.set_closeness(&mut inputs[..2], curr, len);
         self.encoder.compute_values(inputs, curr_out)?;
-
-        for (cval, oval) in curr_out.iter_mut().zip(output.iter_mut()) {
-            *oval += *cval;
-        }
+        inputs[2 + self.conv_order * self.alphabet_size..].copy_from_slice(curr_out);
 
         inputs[2..].rotate_left(self.alphabet_size);
         inputs[2 + last_len..].fill(0.0_f32);
@@ -118,16 +114,16 @@ impl WordVectorizer {
     }
 
     pub fn encode(&self, word: &str) -> Result<Vec<f32>, String> {
-        let mut inputs = vec![0.0_f32; 2 + self.conv_order * self.alphabet_size];
+        let mut inputs =
+            vec![0.0_f32; 2 + self.conv_order * self.alphabet_size + self.out_vec_size];
 
-        let mut output = vec![0.0_f32; self.out_vec_size];
         let mut curr_out = vec![0.0_f32; self.out_vec_size];
 
         for init_ch in word[..self.conv_order].chars() {
             self.set_char_one_hot(&mut inputs[2..], init_ch);
         }
 
-        self.convolve_one(&mut inputs, &mut curr_out, &mut output, word, 0)?;
+        self.convolve_one(&mut inputs, &mut curr_out, word, 0)?;
 
         let new_chars = word[self.conv_order..].chars().enumerate();
         let last_len = inputs.len() - self.alphabet_size;
@@ -136,23 +132,47 @@ impl WordVectorizer {
             self.set_char_one_hot(&mut inputs[2 + last_len..], char);
 
             assert!(i < word.len() - self.conv_order);
-            self.convolve_one(&mut inputs, &mut curr_out, &mut output, word, i + 1)?;
+            self.convolve_one(&mut inputs, &mut curr_out, word, i + 1)?;
         }
 
-        Ok(output)
+        Ok(curr_out)
     }
 
-    pub fn decode(&self, vec: &[f32], len: usize) -> String {
+    pub fn decode_one_char(
+        &self,
+        inputs: &mut [f32],
+        curr_vec: &mut [f32],
+        curr_out: &mut [f32],
+        idx: usize,
+        len: usize,
+    ) -> Result<char, String> {
+        self.set_closeness(inputs, idx, len);
+        inputs[2..].copy_from_slice(curr_vec);
+
+        self.decoder.compute_values(inputs, curr_out)?;
+
+        curr_vec.copy_from_slice(&curr_out[self.alphabet_size..]);
+
+        Ok(self.alphabet
+            .chars()
+            .zip(curr_out[..self.alphabet_size].iter())
+            .reduce(|(lch, lval), (ch, val)| if val > lval { (ch, val) } else { (lch, lval) })
+            .unwrap() // Assume alphabet is never an empty string
+            .0)
+    }
+
+    pub fn decode(&self, vec: &[f32], len: usize) -> Result<String, String> {
         assert_eq!(vec.len(), self.out_vec_size);
 
-        #[allow(unused_variables, unused_mut)]
         let mut res: Vec<char> = vec![' '; len];
+        let mut inputs: Vec<f32> = vec![0.0_f32; 2 + self.out_vec_size];
+        let mut outputs: Vec<f32> = vec![0.0_f32; self.alphabet_size + self.out_vec_size];
+        let mut curr_in: Vec<f32> = vec.to_vec();
 
-        {
-            todo!("vector decoding code (used solely for training)");
+        for (idx, rval) in res.iter_mut().enumerate() {
+            *rval = self.decode_one_char(&mut inputs, &mut curr_in, &mut outputs, idx, len)?;
         }
 
-        #[allow(unreachable_code)]
-        res.iter().collect()
+        Ok(res.iter().collect())
     }
 }

@@ -1,13 +1,13 @@
-//! Random and weighted random selectors.
+//! Highest and lowest weight selectors.
 
 use crate::prelude::MarkovTraverseDir;
 
 use super::super::token::MarkovToken;
 use super::interface::{MarkovSelector, SelectionType};
 
-pub struct WeightedRandomSelector;
+pub struct StaticBestSelector;
 
-impl MarkovSelector for WeightedRandomSelector {
+impl MarkovSelector for StaticBestSelector {
     fn reset(&mut self, _dir: MarkovTraverseDir) {}
 
     fn weight<'a>(
@@ -21,7 +21,7 @@ impl MarkovSelector for WeightedRandomSelector {
     }
 
     fn selection_type(&mut self) -> SelectionType {
-        SelectionType::WeightedRandom
+        SelectionType::Highest
     }
 }
 
@@ -35,12 +35,12 @@ impl MarkovSelector for NaiveRandomSelector {
         _from: &MarkovToken<'a>,
         _to: &MarkovToken<'a>,
         _punct: &MarkovToken<'a>,
-        _hits: usize,
+        hits: usize,
     ) -> f32 {
-        1.0
+        hits as f32
     }
 
     fn selection_type(&mut self) -> SelectionType {
-        SelectionType::WeightedRandom
+        SelectionType::Lowest
     }
 }

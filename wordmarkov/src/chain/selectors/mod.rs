@@ -5,6 +5,7 @@
  * implementations.
  */
 
+pub mod fixed;
 pub mod interface;
 pub mod random;
 

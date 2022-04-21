@@ -1,3 +1,5 @@
+//! Useful token and token sentence related code for the Markov chain.
+
 use crate::sentence::token::Token as LexedToken;
 use std::collections::LinkedList;
 use std::fmt::Display;

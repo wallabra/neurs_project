@@ -153,7 +153,8 @@ impl WordVectorizer {
 
         curr_vec.copy_from_slice(&curr_out[self.alphabet_size..]);
 
-        Ok(self.alphabet
+        Ok(self
+            .alphabet
             .chars()
             .zip(curr_out[..self.alphabet_size].iter())
             .reduce(|(lch, lval), (ch, val)| if val > lval { (ch, val) } else { (lch, lval) })

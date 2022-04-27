@@ -1,8 +1,8 @@
 /*!
  * Label-based supervised learning frame for the TrainingFrame interface.
  */
-use super::interface;
-use super::interface::TrainingFrame;
+use promises::Promise;
+
 use crate::prelude::*;
 
 /// A label that can be used by the [LabeledLearningFrame].
@@ -46,7 +46,33 @@ impl TrainingLabel for usize {
     }
 }
 
-type DistanceWrapper = fn(f32) -> f32;
+impl TrainingLabel for bool {
+    /// The 'index' of this label.
+    ///
+    /// This is important, because when autoencoding,
+    /// a label is encoded as an one-hot vector (one where
+    /// everything is 0, except for a given index, which becomes 1).
+    fn index(self: &bool) -> usize {
+        if *self { 1 } else { 0 }
+    }
+
+    /// Converts from an index into a typed label.
+    fn from_index(idx: usize) -> bool {
+        idx > 0
+    }
+
+    /// The number of labels represented by this type.
+    fn num_labels() -> usize {
+        2
+    }
+
+    /// The human-readable name of a label for debugging.
+    fn debug_name(&self) -> String {
+        self.to_string()
+    }
+}
+
+type DistanceWrapper = fn(f64) -> f64;
 
 /**
  * A TrainingFrame implementation which simulates supervised learning
@@ -65,20 +91,12 @@ where
      */
     inputs: Vec<(Vec<f32>, LabelType)>,
 
-    /// The currently used training case.
-    curr_case: usize,
-
     /// The metric to use to measure the error of an output.
     ///
     /// Used when verifying whether the one-hot encoded output of a network in
     /// a training case matches the expected output as per the case's
     /// corresponding label.
     distance_wrapper: Box<DistanceWrapper>,
-
-    /// Whether reference_fitness should be used.
-    ///
-    /// If this is false, get_reference_fitness will always return zero.
-    use_reference_fitness: bool,
 }
 
 impl<T> LabeledLearningFrame<T>
@@ -89,25 +107,20 @@ where
         cases_inputs: Vec<Vec<f32>>,
         cases_labels: Vec<T>,
         distance_wrapper: Option<Box<DistanceWrapper>>,
-        use_reference_fitness: bool,
     ) -> Result<Self, String> {
         if (cfg!(debug) || cfg!(tests)) && cases_inputs.len() != cases_labels.len() {
             return Err("".to_owned());
         }
 
         Ok(Self {
-            use_reference_fitness,
-
             inputs: cases_inputs
                 .iter()
                 .cloned()
                 .zip(cases_labels.iter().cloned())
                 .collect(),
 
-            curr_case: cases_inputs.len() - 1,
-
             distance_wrapper: Box::from(
-                distance_wrapper.map_or(f32::abs as fn(f32) -> f32, |x| *x),
+                distance_wrapper.map_or(f64::abs as fn(f64) -> f64, |x| *x),
             ),
         })
     }
@@ -132,51 +145,46 @@ where
     }
 }
 
-impl<T> interface::TrainingFrame for LabeledLearningFrame<T>
+/// A classifier assembly.
+pub struct NeuralClassifier {
+    pub classifier: SimpleNeuralNetwork,
+}
+
+impl Assembly for NeuralClassifier {
+    fn get_network_refs(&self) -> &[&SimpleNeuralNetwork] {
+        &[&self.classifier]
+    }
+
+    fn get_networks_mut(&mut self) -> &[&mut SimpleNeuralNetwork] {
+        &[&mut self.classifier]
+    }
+}
+
+impl<T> AssemblyFrame<NeuralClassifier> for LabeledLearningFrame<T>
 where
     T: TrainingLabel,
 {
-    /**
-     * Reset the training frame; called before each network is trained in the
-     * training process.
-     */
-    fn reset_frame(&mut self) {
-        self.curr_case = self.inputs.len() - 1;
-    }
+    fn run(&mut self, assembly: &mut NeuralClassifier) -> Promise<f64, String> {
+        let mut fitness = 0.0_f64;
+        let mut outputs = vec![0.0_f32; T::num_labels()];
 
-    fn next_training_case(&mut self) -> Vec<f32> {
-        self.curr_case = (self.curr_case + 1) % self.inputs.len();
+        for (case, desired_label) in &self.inputs {
+            let desired_idx = desired_label.index() as usize;
 
-        self.inputs[self.curr_case as usize].0.clone()
-    }
+            assembly.classifier.compute_values(&case, &mut outputs);
 
-    fn get_fitness(&mut self, inputs: &[f32], outputs: &[f32]) -> f32 {
-        let desired_label = self.find_label_for(inputs).unwrap();
-        let desired_idx = desired_label.index() as usize;
-
-        let fitness = -(outputs
-            .iter()
-            .enumerate()
-            .map(|iout| {
-                let (i, out) = iout;
-                (self.distance_wrapper)(out - (if i == desired_idx { 1.0 } else { 0.0 }))
-            })
-            .sum::<f32>()
-            / outputs.len() as f32);
-
-        if cfg!(debug) || cfg!(tests) {
-            assert!(fitness <= 0.0);
+            fitness -= outputs
+                .iter()
+                .enumerate()
+                .map(|iout| {
+                    let (i, out) = iout;
+                    (self.distance_wrapper)(*out as f64 - (if i == desired_idx { 1.0 } else { 0.0 }))
+                })
+                .sum::<f64>()
+                / outputs.len() as f64;
         }
 
-        fitness
-    }
-
-    fn get_reference_fitness(&mut self, inputs: &[f32], outputs: &[f32]) -> f32 {
-        if self.use_reference_fitness {
-            self.get_fitness(inputs, outputs)
-        } else {
-            0.0
-        }
+        Promise::<f64, String>::resolve(fitness)
     }
 }
 
@@ -184,18 +192,26 @@ impl<LT> LabeledLearningFrame<LT>
 where
     LT: TrainingLabel,
 {
-    pub fn avg_reference_fitness(&mut self, net: &mut SimpleNeuralNetwork) -> Result<f32, String> {
-        let mut fit = 0.0;
-        let mut output = vec![0.0; net.output_size()?];
+    pub fn avg_reference_fitness(&mut self, assembly: &mut NeuralClassifier) -> Result<f64, String> {
+        let mut fitness = 0.0_f64;
+        let mut outputs = vec![0.0_f32; LT::num_labels()];
 
-        self.reset_frame();
+        for (case, desired_label) in &self.inputs {
+            let desired_idx = desired_label.index() as usize;
 
-        for _ in 0..self.inputs.len() {
-            let reference_input = self.next_training_case();
-            net.compute_values(&reference_input, &mut output)?;
-            fit += self.get_reference_fitness(&reference_input, &output);
+            assembly.classifier.compute_values(&case, &mut outputs);
+
+            fitness -= outputs
+                .iter()
+                .enumerate()
+                .map(|iout| {
+                    let (i, out) = iout;
+                    (self.distance_wrapper)(*out as f64 - (if i == desired_idx { 1.0 } else { 0.0 }))
+                })
+                .sum::<f64>()
+                / outputs.len() as f64;
         }
 
-        Ok(fit / self.inputs.len() as f32)
+        Ok(fitness)
     }
 }

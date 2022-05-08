@@ -1,5 +1,9 @@
 //! Code for the assembly of multiple networks.
 
+use std::future::Future;
+
+use async_trait::async_trait;
+
 use crate::prelude::SimpleNeuralNetwork;
 
 /// An assembly; an use case where multiple networks are required for
@@ -15,11 +19,12 @@ pub trait Assembly {
 }
 
 /// Parameters and specifics for how an Assembly is used and trained.
+#[async_trait]
 pub trait AssemblyFrame<AssemblyType>
 where
     AssemblyType: Assembly,
 {
     /// Performs a training run.
     /// Returns a promise of a fitness value.
-    fn run(&mut self, assembly: &mut AssemblyType) -> Promise<f64, String>;
+    async fn run<E: ToString>(&mut self, assembly: &mut AssemblyType) -> Result<f64, E>;
 }

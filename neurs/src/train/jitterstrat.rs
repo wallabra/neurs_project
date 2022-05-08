@@ -14,9 +14,10 @@
  * networks, for the sake of performance and code simplicity.
  */
 use crate::prelude::{Assembly, AssemblyFrame, NeuralLayer, SimpleNeuralNetwork, TrainingStrategy};
-use promises::Promise;
+use async_trait::async_trait;
 use rand::thread_rng;
 use rand_distr::*;
+use std::future::Future;
 
 // Waiting for trait aliases to become stable so I can do this.
 //    pub trait AJW = Fn(f32, f32, f32) -> f32;
@@ -333,11 +334,16 @@ where
 {
     fn from(src_as: &AS) -> AssemblyWnb {
         AssemblyWnb {
-            wnbs: src_as.get_network_refs().into_iter().map(|x| NetworkWnb::from(*x)).collect(),
+            wnbs: src_as
+                .get_network_refs()
+                .into_iter()
+                .map(|x| NetworkWnb::from(*x))
+                .collect(),
         }
     }
 }
 
+#[async_trait]
 impl<AJW, AssemblyType, ATF> TrainingStrategy<AssemblyType, ATF> for WeightJitterStrat<AJW>
 where
     AJW: Fn(f32, f32, f32) -> f32,
@@ -348,7 +354,7 @@ where
         self.curr_jitter_width = self.jitter_width;
     }
 
-    fn epoch(&mut self, assembly: &mut AssemblyType, frame: &mut ATF) -> Promise<f64, String> {
+    async fn epoch(&mut self, assembly: &mut AssemblyType, frame: &mut ATF) -> Result<f64, String> {
         debug_assert!(self.num_jitters > 0);
         debug_assert!(self.jitter_width >= 0.0);
         debug_assert!(self.num_steps_per_epoch > 0);
@@ -368,88 +374,84 @@ where
             result.0.jitter(&distrib);
         }
 
+        let reference_fitness = reference_fitness.await?;
+
         // Get fitnesses
-        reference_fitness.ok_then(|reference_fitness| {
-            let mut promises: Vec<Promise<f64, String>> = Vec::with_capacity(self.num_jitters);
+        let waiting: Vec<Future<()>> = Vec::with_capacity(self.num_jitters);
 
-            for result in &mut jitter_results {
-                result.0.apply_to(assembly);
+        for result in &mut jitter_results {
+            result.0.apply_to(assembly);
 
-                let res = frame.run(assembly);
+            waiting.push(async {
+                let fit = frame.run(assembly).await?;
 
-                res.ok_then(|fit| {
-                    let delta_fit = fit - reference_fitness;
-                    result.1 += delta_fit;
-                    result.1 /= self.num_steps_per_epoch as f64;
+                let delta_fit = fit - reference_fitness;
+                result.1 += delta_fit;
+                result.1 /= self.num_steps_per_epoch as f64;
+            });
+        }
 
-                    Ok(())
-                });
+        let min_fitness = jitter_results
+            .iter()
+            .map(|x| x.1)
+            .reduce(|ac, n| if ac < n { ac } else { n })
+            .unwrap();
+        let max_fitness = jitter_results
+            .iter()
+            .map(|x| x.1)
+            .reduce(|ac, n| if ac > n { ac } else { n })
+            .unwrap();
 
-                promises.push(res);
+        let num_ok_jitters = if self.apply_bad_jitters {
+            self.num_jitters
+        } else {
+            jitter_results
+                .iter()
+                .map(|x| if x.1 > 0.0 { 1_usize } else { 0_usize })
+                .sum::<usize>()
+        };
+
+        if num_ok_jitters > 0 {
+            let step_factor = self.step_factor / num_ok_jitters as f64;
+
+            // Normalize delta fitnesses and use them to weight jitter weights
+            // and biases proportionately when applying them to the ref. net.
+            for (wnbs, fitness) in &mut jitter_results {
+                if self.apply_bad_jitters || *fitness > 0.0 {
+                    let fitness_scale = (*fitness - min_fitness)
+                        / if max_fitness == min_fitness {
+                            1.0
+                        } else {
+                            max_fitness - min_fitness
+                        }
+                        * 2.0
+                        - 1.0;
+
+                    wnbs.sub_from(&reference_wnb);
+                    wnbs.scale((fitness_scale * step_factor) as f32);
+                    wnbs.add_to(&mut new_wnb);
+                }
             }
 
-            Ok(Promise::all(promises).ok_then(|_| {
-                let min_fitness = jitter_results
-                    .iter()
-                    .map(|x| x.1)
-                    .reduce(|ac, n| if ac < n { ac } else { n })
-                    .unwrap();
-                let max_fitness = jitter_results
-                    .iter()
-                    .map(|x| x.1)
-                    .reduce(|ac, n| if ac > n { ac } else { n })
-                    .unwrap();
+            //println!("Applied {} jitters.", num_ok_jitters);
+        } else {
+            new_wnb = reference_wnb.clone();
 
-                let num_ok_jitters = if self.apply_bad_jitters {
-                    self.num_jitters
-                } else {
-                    jitter_results
-                        .iter()
-                        .map(|x| if x.1 > 0.0 { 1_usize } else { 0_usize })
-                        .sum::<usize>()
-                };
+            //println!("Applied NO jitters.");
+        }
 
-                if num_ok_jitters > 0 {
-                    let step_factor = self.step_factor / num_ok_jitters as f64;
+        self.curr_jitter_width *= 1.0 - self.jitter_width_falloff;
 
-                    for (wnbs, fitness) in &mut jitter_results {
-                        if self.apply_bad_jitters || *fitness > 0.0 {
-                            let fitness_scale = (*fitness - min_fitness)
-                                / (if max_fitness == min_fitness {
-                                    1.0
-                                } else {
-                                    max_fitness - min_fitness
-                                })
-                                * 2.0
-                                - 1.0;
+        if self.adaptive_jitter_width.is_some() {
+            self.curr_jitter_width = self.adaptive_jitter_width.as_ref().unwrap()(
+                self.curr_jitter_width,
+                (max_fitness - reference_fitness) as f32,
+                (reference_fitness) as f32,
+            );
+        }
 
-                            wnbs.sub_from(&reference_wnb);
-                            wnbs.scale((fitness_scale * step_factor) as f32);
-                            wnbs.add_to(&mut new_wnb);
-                        }
-                    }
+        new_wnb.apply_to(assembly);
 
-                    //println!("Applied {} jitters.", num_ok_jitters);
-                } else {
-                    new_wnb = reference_wnb.clone();
-
-                    //println!("Applied NO jitters.");
-                }
-
-                self.curr_jitter_width *= 1.0 - self.jitter_width_falloff;
-
-                if self.adaptive_jitter_width.is_some() {
-                    self.curr_jitter_width = self.adaptive_jitter_width.as_ref().unwrap()(
-                        self.curr_jitter_width,
-                        (max_fitness - reference_fitness) as f32,
-                        (reference_fitness) as f32,
-                    );
-                }
-
-                new_wnb.apply_to(assembly);
-
-                Ok(max_fitness + reference_fitness)
-            }))
-        })
+        Ok(max_fitness + reference_fitness)
     }
 }

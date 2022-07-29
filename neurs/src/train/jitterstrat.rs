@@ -375,13 +375,13 @@ where
             result.0.jitter(&distrib);
         }
 
-        let reference_fitness = reference_fitness.await?;
+        let reference_fitness = reference_fitness.await.map_err(|ts| ts.to_string())?;
 
         // Get fitnesses
         for result in &mut jitter_results {
             result.0.apply_to(assembly);
 
-            let fit = frame.run(assembly).await?;
+            let fit = frame.run(assembly).await.map_err(|ts| ts.to_string())?;
 
             let delta_fit = fit - reference_fitness;
             result.1 += delta_fit;

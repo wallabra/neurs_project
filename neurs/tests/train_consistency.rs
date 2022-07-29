@@ -1,7 +1,6 @@
 #[cfg(test)]
 mod tests {
     use neurs::prelude::*;
-    use neurs::train::*;
     use neurs::train::{label, trainer};
     use neurs::{activations, neuralnet};
 

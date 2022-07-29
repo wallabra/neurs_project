@@ -18,6 +18,7 @@ use async_trait::async_trait;
 use rand::thread_rng;
 use rand_distr::*;
 use std::future::Future;
+use std::boxed::Box;
 
 // Waiting for trait aliases to become stable so I can do this.
 //    pub trait AJW = Fn(f32, f32, f32) -> f32;
@@ -377,7 +378,7 @@ where
         let reference_fitness = reference_fitness.await?;
 
         // Get fitnesses
-        let waiting: Vec<Future<()>> = Vec::with_capacity(self.num_jitters);
+        let waiting: Vec<Box<dyn Future<()>>> = Vec::with_capacity(self.num_jitters);
 
         for result in &mut jitter_results {
             result.0.apply_to(assembly);

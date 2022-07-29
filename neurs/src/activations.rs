@@ -5,7 +5,7 @@
 /// case 0 is returned instead.
 #[inline(always)]
 pub fn relu(x: f32) -> f32 {
-    x * (x > 0.0) as u8 as f32
+    x * ((x > 0.0) as u8 as f32)
 }
 
 /// The identity, or linear, activation function; a dummy function. Not

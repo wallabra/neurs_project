@@ -1,30 +1,32 @@
-use super::jitterstrat::*;
-
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::train::{label, trainer};
-    use crate::{activations, neuralnet};
+    use neurs::prelude::*;
+    use neurs::train::{label, trainer};
+    use neurs::{activations, neuralnet};
 
-    fn test_net<MSF>(mut trainer: trainer::Trainer, test_cases: Vec<Vec<f32>>, makes_sense: MSF)
-    where
+    fn test_net<MSF, LT>(
+        classifier: NeuralClassifier,
+        test_cases: Vec<Vec<f32>>,
+        makes_sense: MSF,
+    ) where
         MSF: Fn(&[f32], &[f32]) -> bool,
+        LT: TrainingLabel,
     {
-        let mut outputs: Vec<f32> = vec![0.0; trainer.reference_net.output_size().unwrap()];
+        let mut outputs = vec![0.0_f32; LT::num_labels()];
 
         for inp in &test_cases {
-            trainer
-                .reference_net
+            classifier
+                .classifier
                 .compute_values(&inp, &mut outputs)
                 .unwrap();
+
             println!(
-                "[{}, {}] -> {:?} ([{}, {}]) (fitness {})",
+                "[{}, {}] -> {:?} ([{}, {}])",
                 inp[0] as u8,
                 inp[1] as u8,
                 outputs[1] - outputs[0],
                 outputs[0],
-                outputs[1],
-                trainer.frame.get_fitness(&inp, &outputs)
+                outputs[1]
             );
         }
 
@@ -35,8 +37,8 @@ mod tests {
             .iter()
             .enumerate()
         {
-            trainer
-                .reference_net
+            classifier
+                .classifier
                 .compute_values(inp, &mut outputs)
                 .unwrap();
 
@@ -58,23 +60,24 @@ mod tests {
 
     // Test instances
 
-    #[test]
-    fn test_jitter_training_xor() {
-        let mut net = neuralnet::SimpleNeuralNetwork::new_simple_with_activation(
+    #[tokio::test]
+    async fn test_jitter_training_xor() {
+        let net = neuralnet::SimpleNeuralNetwork::new_simple_with_activation(
             &[2, 3, 2],
             Some(activations::fast_sigmoid),
         );
 
-        let mut frame: label::LabeledLearningFrame<usize> = label::LabeledLearningFrame::new(
+        let mut classifier = NeuralClassifier { classifier: net };
+
+        let mut frame: label::LabeledLearningFrame<bool> = label::LabeledLearningFrame::new(
             vec![
                 vec![1.0, 0.0],
                 vec![0.0, 1.0],
                 vec![1.0, 1.0],
                 vec![0.0, 0.0],
             ],
-            vec![1, 1, 0, 0],
+            vec![true, true, false, false],
             Some(Box::new(|x: f32| x * x)),
-            true,
         )
         .unwrap();
 
@@ -95,8 +98,7 @@ mod tests {
         let jitter_width_falloff = strategy.jitter_width_falloff;
         let adaptive_jitter_width = strategy.adaptive_jitter_width.clone();
 
-        let mut trainer =
-            trainer::Trainer::new(&mut net, Box::from(frame.clone()), Box::from(strategy));
+        let mut trainer = trainer::Trainer::new(&mut classifier, frame.clone(), strategy);
 
         println!("Trainer initialized successfully!");
 
@@ -104,9 +106,9 @@ mod tests {
 
         for epoch in 1..=250 {
             let ref_fitness = frame
-                .avg_reference_fitness(&mut trainer.reference_net)
+                .avg_reference_fitness(&mut trainer.reference_assembly)
                 .unwrap();
-            let best_fitness = trainer.epoch().unwrap();
+            let best_fitness = trainer.epoch().await.unwrap();
 
             jitter_width *= 1.0 - jitter_width_falloff;
 
@@ -126,8 +128,8 @@ mod tests {
 
         println!("Done training! Testing XOR network:");
 
-        test_net(
-            trainer,
+        test_net::<_, bool>(
+            classifier,
             vec![
                 vec![0.0, 1.0],
                 vec![1.0, 0.0],

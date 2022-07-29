@@ -355,7 +355,7 @@ where
         self.curr_jitter_width = self.jitter_width;
     }
 
-    async fn epoch(&mut self, assembly: &mut AssemblyType, frame: &mut ATF) -> Result<f64, String> {
+    async fn epoch(&mut self, assembly: &mut AssemblyType, frame: &mut ATF) -> Result<f32, String> {
         debug_assert!(self.num_jitters > 0);
         debug_assert!(self.jitter_width >= 0.0);
         debug_assert!(self.num_steps_per_epoch > 0);

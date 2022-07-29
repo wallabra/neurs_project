@@ -108,7 +108,7 @@ mod tests {
             let ref_fitness = frame
                 .avg_reference_fitness(&mut trainer.reference_assembly)
                 .unwrap();
-            let best_fitness = trainer.epoch().unwrap();
+            let best_fitness = trainer.epoch().await.unwrap();
 
             jitter_width *= 1.0 - jitter_width_falloff;
 

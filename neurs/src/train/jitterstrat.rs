@@ -18,7 +18,6 @@ use crate::prelude::*;
 use async_trait::async_trait;
 use rand::thread_rng;
 use rand_distr::*;
-use std::future::Future;
 
 // Waiting for trait aliases to become stable so I can do this.
 //    pub trait AJW = Fn(f32, f32, f32) -> f32;

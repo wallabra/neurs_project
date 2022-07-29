@@ -76,7 +76,7 @@ impl TrainingLabel for bool {
     }
 }
 
-type DistanceWrapper = fn(f64) -> f64;
+type DistanceWrapper = fn(f32) -> f32;
 
 /**
  * A TrainingFrame implementation which simulates supervised learning
@@ -124,7 +124,7 @@ where
                 .collect(),
 
             distance_wrapper: Box::from(
-                distance_wrapper.map_or(f64::abs as fn(f64) -> f64, |x| *x),
+                distance_wrapper.map_or(f32::abs as fn(f32) -> f32, |x| *x),
             ),
         })
     }
@@ -171,8 +171,8 @@ where
 {
     type E = String;
 
-    async fn run(&mut self, assembly: &mut NeuralClassifier) -> Result<f64, String> {
-        let mut fitness = 0.0_f64;
+    async fn run(&mut self, assembly: &mut NeuralClassifier) -> Result<f32, String> {
+        let mut fitness = 0.0_f32;
         let mut outputs = vec![0.0_f32; T::num_labels()];
 
         for (case, desired_label) in &self.inputs {
@@ -186,11 +186,11 @@ where
                 .map(|iout| {
                     let (i, out) = iout;
                     (self.distance_wrapper)(
-                        *out as f64 - (if i == desired_idx { 1.0 } else { 0.0 }),
+                        *out as f32 - (if i == desired_idx { 1.0 } else { 0.0 }),
                     )
                 })
-                .sum::<f64>()
-                / outputs.len() as f64;
+                .sum::<f32>()
+                / outputs.len() as f32;
         }
 
         Ok(fitness)
@@ -204,8 +204,8 @@ where
     pub fn avg_reference_fitness(
         &mut self,
         assembly: &mut NeuralClassifier,
-    ) -> Result<f64, String> {
-        let mut fitness = 0.0_f64;
+    ) -> Result<f32, String> {
+        let mut fitness = 0.0_f32;
         let mut outputs = vec![0.0_f32; LT::num_labels()];
 
         for (case, desired_label) in &self.inputs {
@@ -219,11 +219,11 @@ where
                 .map(|iout| {
                     let (i, out) = iout;
                     (self.distance_wrapper)(
-                        *out as f64 - (if i == desired_idx { 1.0 } else { 0.0 }),
+                        *out as f32 - (if i == desired_idx { 1.0 } else { 0.0 }),
                     )
                 })
-                .sum::<f64>()
-                / outputs.len() as f64;
+                .sum::<f32>()
+                / outputs.len() as f32;
         }
 
         Ok(fitness)

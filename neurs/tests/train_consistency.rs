@@ -78,7 +78,7 @@ mod tests {
                 vec![0.0, 0.0],
             ],
             vec![true, true, false, false],
-            Some(Box::new(|x: f64| x * x)),
+            Some(Box::new(|x: f32| x * x)),
         )
         .unwrap();
 

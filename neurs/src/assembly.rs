@@ -26,5 +26,5 @@ where
 
     /// Performs a training run.
     /// Returns a promise of a fitness value.
-    async fn run(&mut self, assembly: &mut AssemblyType) -> Result<f64, Self::E>;
+    async fn run(&mut self, assembly: &mut AssemblyType) -> Result<f32, Self::E>;
 }

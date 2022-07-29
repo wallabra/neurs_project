@@ -1,13 +1,15 @@
-use crate::prelude::*;
-
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::train::{label, trainer};
-    use crate::{activations, neuralnet};
+    use neurs::prelude::*;
+    use neurs::train::*;
+    use neurs::train::{label, trainer};
+    use neurs::{activations, neuralnet};
 
-    fn test_net<MSF, LT>(mut classifier: NeuralClassifier, test_cases: Vec<Vec<f32>>, makes_sense: MSF)
-    where
+    fn test_net<MSF, LT>(
+        mut classifier: NeuralClassifier,
+        test_cases: Vec<Vec<f32>>,
+        makes_sense: MSF,
+    ) where
         MSF: Fn(&[f32], &[f32]) -> bool,
         LT: TrainingLabel,
     {
@@ -97,8 +99,7 @@ mod tests {
         let jitter_width_falloff = strategy.jitter_width_falloff;
         let adaptive_jitter_width = strategy.adaptive_jitter_width.clone();
 
-        let mut trainer =
-            trainer::Trainer::new(&mut classifier, frame, strategy);
+        let mut trainer = trainer::Trainer::new(&mut classifier, frame, strategy);
 
         println!("Trainer initialized successfully!");
 

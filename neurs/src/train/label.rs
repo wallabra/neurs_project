@@ -53,7 +53,11 @@ impl TrainingLabel for bool {
     /// a label is encoded as an one-hot vector (one where
     /// everything is 0, except for a given index, which becomes 1).
     fn index(self: &bool) -> usize {
-        if *self { 1 } else { 0 }
+        if *self {
+            1
+        } else {
+            0
+        }
     }
 
     /// Converts from an index into a typed label.
@@ -178,7 +182,9 @@ where
                 .enumerate()
                 .map(|iout| {
                     let (i, out) = iout;
-                    (self.distance_wrapper)(*out as f64 - (if i == desired_idx { 1.0 } else { 0.0 }))
+                    (self.distance_wrapper)(
+                        *out as f64 - (if i == desired_idx { 1.0 } else { 0.0 }),
+                    )
                 })
                 .sum::<f64>()
                 / outputs.len() as f64;
@@ -192,7 +198,10 @@ impl<LT> LabeledLearningFrame<LT>
 where
     LT: TrainingLabel,
 {
-    pub fn avg_reference_fitness(&mut self, assembly: &mut NeuralClassifier) -> Result<f64, String> {
+    pub fn avg_reference_fitness(
+        &mut self,
+        assembly: &mut NeuralClassifier,
+    ) -> Result<f64, String> {
         let mut fitness = 0.0_f64;
         let mut outputs = vec![0.0_f32; LT::num_labels()];
 
@@ -206,7 +215,9 @@ where
                 .enumerate()
                 .map(|iout| {
                     let (i, out) = iout;
-                    (self.distance_wrapper)(*out as f64 - (if i == desired_idx { 1.0 } else { 0.0 }))
+                    (self.distance_wrapper)(
+                        *out as f64 - (if i == desired_idx { 1.0 } else { 0.0 }),
+                    )
                 })
                 .sum::<f64>()
                 / outputs.len() as f64;

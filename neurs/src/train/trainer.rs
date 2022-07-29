@@ -44,7 +44,11 @@ where
     /**
      * Refer to an existing assembly, and make it this trainer's reference one.
      */
-    pub fn new(assembly: &'a mut AssemblyType, frame: ATF, strategy: TS) -> Trainer<AssemblyType, ATF, TS> {
+    pub fn new(
+        assembly: &'a mut AssemblyType,
+        frame: ATF,
+        strategy: TS,
+    ) -> Trainer<AssemblyType, ATF, TS> {
         Trainer {
             reference_assembly: assembly,
             frame,

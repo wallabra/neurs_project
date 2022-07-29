@@ -3,7 +3,6 @@
  * training.
  */
 use crate::prelude::{Assembly, AssemblyFrame, TrainingStrategy};
-use promises::Promise;
 
 /**
  * A struct which orchestrates the training process of a neural network.
@@ -61,8 +60,9 @@ where
      *
      * Should return the best fitness arising from this epoch.
      */
-    pub fn epoch(&mut self) -> Promise<f32, String> {
+    pub async fn epoch(&mut self) -> Result<f32, String> {
         self.strategy
             .epoch(self.reference_assembly, &mut self.frame)
+            .await
     }
 }

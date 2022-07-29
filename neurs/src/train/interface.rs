@@ -32,5 +32,5 @@ where
         &mut self,
         assembly: &mut AssemblyType,
         assembly_frame: &mut ATF,
-    ) -> Result<f64, String>;
+    ) -> Result<f32, String>;
 }

@@ -48,7 +48,7 @@ where
     pub jitter_width_falloff: f32,
 
     /// How much the weights should be adjusted after an epoch.
-    pub step_factor: f64,
+    pub step_factor: f32,
 
     /// How many cycles of compute and get-fitness should be run per network,
     /// per epoch.
@@ -79,7 +79,7 @@ where
     pub jitter_width_falloff: f32,
 
     /// How much the weights should be adjusted after an epoch.
-    pub step_factor: f64,
+    pub step_factor: f32,
 
     /// How many cycles of compute and get-fitness should be run per network,
     /// per epoch.
@@ -368,7 +368,7 @@ where
         // new_wnb.zero();
 
         let distrib = Normal::<f32>::new(0.0, self.curr_jitter_width).unwrap();
-        let mut jitter_results: Vec<(AssemblyWnb, f64)> =
+        let mut jitter_results: Vec<(AssemblyWnb, f32)> =
             vec![(reference_wnb.clone(), 0.0); self.num_jitters];
 
         for result in &mut jitter_results {
@@ -385,7 +385,7 @@ where
 
             let delta_fit = fit - reference_fitness;
             result.1 += delta_fit;
-            result.1 /= self.num_steps_per_epoch as f64;
+            result.1 /= self.num_steps_per_epoch as f32;
         }
 
         let min_fitness = jitter_results
@@ -409,7 +409,7 @@ where
         };
 
         if num_ok_jitters > 0 {
-            let step_factor = self.step_factor / num_ok_jitters as f64;
+            let step_factor = self.step_factor / num_ok_jitters as f32;
 
             // Normalize delta fitnesses and use them to weight jitter weights
             // and biases proportionately when applying them to the ref. net.

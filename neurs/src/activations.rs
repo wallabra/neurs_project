@@ -3,12 +3,14 @@
 
 /// The ReLu activation function; returns x, unless it is negative, in which
 /// case 0 is returned instead.
+#[inline(always)]
 pub fn relu(x: f32) -> f32 {
     x * ((x > 0.0) as u8 as f32)
 }
 
 /// The identity, or linear, activation function; a dummy function. Not
 /// recommended; use for debugging only!
+#[inline(always)]
 pub fn identity(x: f32) -> f32 {
     x
 }
@@ -19,6 +21,7 @@ pub fn identity(x: f32) -> f32 {
 ///
 /// "Signed" version (outputs range from -1 to 1), unlike the original
 /// logistic function.
+#[inline(always)]
 pub fn fast_sigmoid_signed(x: f32) -> f32 {
     x / (1.0 + x.abs())
 }
@@ -29,6 +32,7 @@ pub fn fast_sigmoid_signed(x: f32) -> f32 {
 ///
 /// "Unsigned" version (outputs range from 0 to 1), akin to the original
 /// logistic function.
+#[inline(always)]
 pub fn fast_sigmoid(x: f32) -> f32 {
     0.5 * (x / (1.0 + x.abs()) + 1.0)
 }

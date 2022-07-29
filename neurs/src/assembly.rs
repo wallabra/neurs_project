@@ -9,11 +9,11 @@ use crate::prelude::SimpleNeuralNetwork;
 pub trait Assembly {
     /// Get immutable references to the neural networks used by this
     /// assembly.
-    fn get_network_refs(&self) -> &[&SimpleNeuralNetwork];
+    fn get_network_refs(&self) -> Vec<&SimpleNeuralNetwork>;
 
     /// Get mutable references to the neural networks used by this
     /// assembly.
-    fn get_networks_mut(&mut self) -> &[&mut SimpleNeuralNetwork];
+    fn get_networks_mut(&mut self) -> Vec<&mut SimpleNeuralNetwork>;
 }
 
 /// Parameters and specifics for how an Assembly is used and trained.

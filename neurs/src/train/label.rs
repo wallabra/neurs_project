@@ -155,12 +155,12 @@ pub struct NeuralClassifier {
 }
 
 impl Assembly for NeuralClassifier {
-    fn get_network_refs(&self) -> &[&SimpleNeuralNetwork] {
-        &[&self.classifier]
+    fn get_network_refs(&self) -> Vec<&SimpleNeuralNetwork> {
+        vec![&self.classifier]
     }
 
-    fn get_networks_mut(&mut self) -> &[&mut SimpleNeuralNetwork] {
-        &[&mut self.classifier]
+    fn get_networks_mut(&mut self) -> Vec<&mut SimpleNeuralNetwork> {
+        vec![&mut self.classifier]
     }
 }
 

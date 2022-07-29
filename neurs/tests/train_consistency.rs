@@ -5,7 +5,7 @@ mod tests {
     use neurs::{activations, neuralnet};
 
     fn test_net<MSF, LT>(
-        mut classifier: NeuralClassifier,
+        classifier: NeuralClassifier,
         test_cases: Vec<Vec<f32>>,
         makes_sense: MSF,
     ) where
@@ -60,9 +60,9 @@ mod tests {
 
     // Test instances
 
-    #[test]
-    fn test_jitter_training_xor() {
-        let mut net = neuralnet::SimpleNeuralNetwork::new_simple_with_activation(
+    #[tokio::test]
+    async fn test_jitter_training_xor() {
+        let net = neuralnet::SimpleNeuralNetwork::new_simple_with_activation(
             &[2, 3, 2],
             Some(activations::fast_sigmoid),
         );
@@ -98,7 +98,7 @@ mod tests {
         let jitter_width_falloff = strategy.jitter_width_falloff;
         let adaptive_jitter_width = strategy.adaptive_jitter_width.clone();
 
-        let mut trainer = trainer::Trainer::new(&mut classifier, frame, strategy);
+        let mut trainer = trainer::Trainer::new(&mut classifier, frame.clone(), strategy);
 
         println!("Trainer initialized successfully!");
 
@@ -128,7 +128,7 @@ mod tests {
 
         println!("Done training! Testing XOR network:");
 
-        test_net(
+        test_net::<_, bool>(
             classifier,
             vec![
                 vec![0.0, 1.0],

@@ -129,7 +129,7 @@ where
         })
     }
 
-    fn find_label_for(&self, inputs: &[f32]) -> Option<&T> {
+    pub fn find_label_for(&self, inputs: &[f32]) -> Option<&T> {
         for inp in &self.inputs {
             if inp.0 == inputs {
                 return Some(&inp.1);

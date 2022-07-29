@@ -378,18 +378,14 @@ where
         let reference_fitness = reference_fitness.await?;
 
         // Get fitnesses
-        let waiting: Vec<Box<dyn Future<()>>> = Vec::with_capacity(self.num_jitters);
-
         for result in &mut jitter_results {
             result.0.apply_to(assembly);
 
-            waiting.push(async {
-                let fit = frame.run(assembly).await?;
+            let fit = frame.run(assembly).await?;
 
-                let delta_fit = fit - reference_fitness;
-                result.1 += delta_fit;
-                result.1 /= self.num_steps_per_epoch as f64;
-            });
+            let delta_fit = fit - reference_fitness;
+            result.1 += delta_fit;
+            result.1 /= self.num_steps_per_epoch as f64;
         }
 
         let min_fitness = jitter_results

@@ -129,7 +129,7 @@ mod tests {
         println!("Done training! Testing XOR network:");
 
         test_net(
-            trainer,
+            classifier,
             vec![
                 vec![0.0, 1.0],
                 vec![1.0, 0.0],

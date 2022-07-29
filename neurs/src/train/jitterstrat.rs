@@ -13,12 +13,12 @@
  * networks. However, the implementation provided here is specific to neural
  * networks, for the sake of performance and code simplicity.
  */
-use crate::prelude::{Assembly, AssemblyFrame, NeuralLayer, SimpleNeuralNetwork, TrainingStrategy};
+use crate::prelude::*;
+
 use async_trait::async_trait;
 use rand::thread_rng;
 use rand_distr::*;
 use std::future::Future;
-use std::boxed::Box;
 
 // Waiting for trait aliases to become stable so I can do this.
 //    pub trait AJW = Fn(f32, f32, f32) -> f32;

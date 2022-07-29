@@ -346,9 +346,9 @@ where
 #[async_trait]
 impl<AJW, AssemblyType, ATF> TrainingStrategy<AssemblyType, ATF> for WeightJitterStrat<AJW>
 where
-    AJW: Fn(f32, f32, f32) -> f32,
-    AssemblyType: Assembly,
-    ATF: AssemblyFrame<AssemblyType>,
+    AJW: Fn(f32, f32, f32) -> f32 + Send,
+    AssemblyType: Assembly + Send,
+    ATF: AssemblyFrame<AssemblyType> + Send,
 {
     fn reset_training(&mut self) {
         self.curr_jitter_width = self.jitter_width;

@@ -15,7 +15,7 @@ use crate::prelude::{Assembly, AssemblyFrame};
  */
 pub trait TrainingStrategy<AssemblyType, ATF>
 where
-    AssemblyType: Assembly,
+    AssemblyType: Assembly + Send,
     ATF: AssemblyFrame<AssemblyType>,
 {
     /**

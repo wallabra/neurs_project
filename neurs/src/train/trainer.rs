@@ -12,7 +12,7 @@ use crate::prelude::{Assembly, AssemblyFrame, TrainingStrategy};
  */
 pub struct Trainer<'a, AssemblyType, ATF, TS>
 where
-    AssemblyType: Assembly,
+    AssemblyType: Assembly + Send,
     ATF: AssemblyFrame<AssemblyType>,
     TS: TrainingStrategy<AssemblyType, ATF>,
 {
@@ -36,7 +36,7 @@ where
 
 impl<'a, AssemblyType, ATF, TS> Trainer<'a, AssemblyType, ATF, TS>
 where
-    AssemblyType: Assembly,
+    AssemblyType: Assembly + Send,
     ATF: AssemblyFrame<AssemblyType>,
     TS: TrainingStrategy<AssemblyType, ATF>,
 {

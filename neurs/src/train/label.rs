@@ -1,12 +1,12 @@
 /*!
  * Label-based supervised learning frame for the TrainingFrame interface.
  */
-use promises::Promise;
-
 use crate::prelude::*;
 
+use async_trait::async_trait;
+
 /// A label that can be used by the [LabeledLearningFrame].
-pub trait TrainingLabel: Eq + Clone {
+pub trait TrainingLabel: Eq + Clone + Send {
     /// How many label values there are under this label type.
     fn num_labels() -> usize;
 
@@ -164,11 +164,14 @@ impl Assembly for NeuralClassifier {
     }
 }
 
+#[async_trait]
 impl<T> AssemblyFrame<NeuralClassifier> for LabeledLearningFrame<T>
 where
     T: TrainingLabel,
 {
-    fn run(&mut self, assembly: &mut NeuralClassifier) -> Promise<f64, String> {
+    type E = String;
+
+    async fn run(&mut self, assembly: &mut NeuralClassifier) -> Result<f64, String> {
         let mut fitness = 0.0_f64;
         let mut outputs = vec![0.0_f32; T::num_labels()];
 
@@ -190,7 +193,7 @@ where
                 / outputs.len() as f64;
         }
 
-        Promise::<f64, String>::resolve(fitness)
+        Ok(fitness)
     }
 }
 

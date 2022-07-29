@@ -22,7 +22,9 @@ pub trait AssemblyFrame<AssemblyType>
 where
     AssemblyType: Assembly,
 {
+    type E: ToString;
+
     /// Performs a training run.
     /// Returns a promise of a fitness value.
-    async fn run<E: ToString>(&mut self, assembly: &mut AssemblyType) -> Result<f64, E>;
+    async fn run(&mut self, assembly: &mut AssemblyType) -> Result<f64, Self::E>;
 }

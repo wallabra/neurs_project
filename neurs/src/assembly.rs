@@ -1,7 +1,5 @@
 //! Code for the assembly of multiple networks.
 
-use std::future::Future;
-
 use async_trait::async_trait;
 
 use crate::prelude::SimpleNeuralNetwork;

@@ -80,7 +80,7 @@ impl NeuralLayer {
     }
 
     /// Transforms a vector of values through this dense layer of neurons.
-    pub fn compute(&self, inputs: &[f32], outputs: &mut [f32]) -> Result<(), String> {
+    pub fn compute(&self, mut inputs: &[f32], mut outputs: &mut [f32]) -> Result<(), String> {
         if cfg!(debug) || cfg!(tests) {
             if inputs.len() < self.input_size as usize {
                 return Err("Source slice is smaller than the input size of this layer".to_owned());
@@ -93,18 +93,22 @@ impl NeuralLayer {
             }
         }
 
-        let input_size = self.input_size;
+        inputs = &inputs[0..self.input_size];
+        outputs = &mut outputs[0..self.output_size];
 
-        for (i, output) in outputs.iter_mut().enumerate() {
-            let weight_slice =
-                &self.weights[i * self.input_size as usize..(i + 1) * self.input_size as usize];
+        for (i, out) in outputs.iter_mut().enumerate() {
+            let idx_base: usize = (i * self.input_size) as usize;
 
-            *output = (self.activation)(
+            let value = (self.activation)(
                 self.biases[i]
-                    + ((0..input_size as usize)
-                        .map(|j| inputs[j] * weight_slice[j])
-                        .sum::<f32>()),
+                    + inputs
+                        .iter()
+                        .zip(&self.weights[idx_base..])
+                        .map(|(inp, w)| (*inp) * (*w))
+                        .sum::<f32>(),
             );
+
+            *out = value;
         }
 
         Ok(())

@@ -8,6 +8,4 @@ pub mod interface;
 pub mod jitterstrat;
 pub mod label;
 pub mod prelude;
-#[cfg(test)]
-pub mod test_jitterstrat;
 pub mod trainer;

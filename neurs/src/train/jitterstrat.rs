@@ -13,9 +13,9 @@
  * networks. However, the implementation provided here is specific to neural
  * networks, for the sake of performance and code simplicity.
  */
-use super::super::neuralnet::SimpleNeuralNetwork;
-use super::interface::{TrainingFrame, TrainingStrategy};
-use crate::neuralnet::NeuralLayer;
+use crate::prelude::*;
+
+use async_trait::async_trait;
 use rand::thread_rng;
 use rand_distr::*;
 
@@ -101,25 +101,6 @@ where
 
             curr_jitter_width: options.jitter_width,
         }
-    }
-
-    fn avg_reference_fitness(
-        &mut self,
-        frame: &mut Box<dyn TrainingFrame>,
-        net: &mut SimpleNeuralNetwork,
-    ) -> Result<f32, String> {
-        let mut fit = 0.0;
-        let mut output = vec![0.0; net.output_size()?];
-
-        frame.reset_frame();
-
-        for _ in 0..self.num_steps_per_epoch {
-            let reference_input = frame.next_training_case();
-            net.compute_values(&reference_input, &mut output)?;
-            fit += frame.get_reference_fitness(&reference_input, &output);
-        }
-
-        Ok(fit / self.num_steps_per_epoch as f32)
     }
 }
 
@@ -223,12 +204,12 @@ impl From<&mut NeuralLayer> for WeightsAndBiases {
 }
 
 #[derive(Clone)]
-struct WnbList {
+struct NetworkWnb {
     wnbs: Vec<WeightsAndBiases>,
 }
 
 #[allow(unused)]
-impl WnbList {
+impl NetworkWnb {
     fn zero(&mut self) {
         for wnb in &mut self.wnbs {
             wnb.zero()
@@ -257,95 +238,154 @@ impl WnbList {
         }
     }
 
-    fn scale_from(&mut self, other: &WnbList, scale: f32) {
+    fn scale_from(&mut self, other: &NetworkWnb, scale: f32) {
         for (wnb, ownb) in self.wnbs.iter_mut().zip(&other.wnbs) {
             wnb.scale_from(ownb, scale);
         }
     }
 
-    fn add_to(&self, other: &mut WnbList) {
+    fn add_to(&self, other: &mut NetworkWnb) {
         for (wnb, ownb) in self.wnbs.iter().zip(&mut other.wnbs) {
             wnb.add_to(ownb);
         }
     }
 
-    fn sub_from(&mut self, other: &WnbList) {
+    fn sub_from(&mut self, other: &NetworkWnb) {
         for (wnb, ownb) in self.wnbs.iter_mut().zip(&other.wnbs) {
             wnb.sub_from(ownb);
         }
     }
 }
 
-impl From<&SimpleNeuralNetwork> for WnbList {
-    fn from(src_net: &SimpleNeuralNetwork) -> WnbList {
-        WnbList {
+#[derive(Clone)]
+struct AssemblyWnb {
+    wnbs: Vec<NetworkWnb>,
+}
+
+#[allow(unused)]
+impl AssemblyWnb {
+    fn zero(&mut self) {
+        for wnb in &mut self.wnbs {
+            wnb.zero()
+        }
+    }
+
+    fn apply_to<AS>(&self, dest_net: &mut AS)
+    where
+        AS: Assembly,
+    {
+        let mut netrefs = dest_net.get_networks_mut();
+
+        for (nr, wnb) in netrefs.iter_mut().zip(self.wnbs.iter()) {
+            wnb.apply_to(*nr);
+        }
+    }
+
+    fn jitter<D: Distribution<f32>>(&mut self, distrib: &D) {
+        for wnb in &mut self.wnbs {
+            wnb.jitter(&distrib);
+        }
+    }
+
+    fn scale(&mut self, scale: f32) {
+        for wnb in &mut self.wnbs {
+            wnb.scale(scale);
+        }
+    }
+
+    fn scale_from(&mut self, other: &AssemblyWnb, scale: f32) {
+        for (wnb, ownb) in self.wnbs.iter_mut().zip(&other.wnbs) {
+            wnb.scale_from(ownb, scale);
+        }
+    }
+
+    fn add_to(&self, other: &mut AssemblyWnb) {
+        for (wnb, ownb) in self.wnbs.iter().zip(&mut other.wnbs) {
+            wnb.add_to(ownb);
+        }
+    }
+
+    fn sub_from(&mut self, other: &AssemblyWnb) {
+        for (wnb, ownb) in self.wnbs.iter_mut().zip(&other.wnbs) {
+            wnb.sub_from(ownb);
+        }
+    }
+}
+
+impl From<&SimpleNeuralNetwork> for NetworkWnb {
+    fn from(src_net: &SimpleNeuralNetwork) -> NetworkWnb {
+        NetworkWnb {
             wnbs: src_net.layers.iter().map(WeightsAndBiases::from).collect(),
         }
     }
 }
 
-impl From<&mut SimpleNeuralNetwork> for WnbList {
-    fn from(src_net: &mut SimpleNeuralNetwork) -> WnbList {
-        WnbList {
+impl From<&mut SimpleNeuralNetwork> for NetworkWnb {
+    fn from(src_net: &mut SimpleNeuralNetwork) -> NetworkWnb {
+        NetworkWnb {
             wnbs: src_net.layers.iter().map(WeightsAndBiases::from).collect(),
         }
     }
 }
 
-impl<AJW> TrainingStrategy for WeightJitterStrat<AJW>
+impl<AS> From<&AS> for AssemblyWnb
 where
-    AJW: Fn(f32, f32, f32) -> f32,
+    AS: Assembly,
+{
+    fn from(src_as: &AS) -> AssemblyWnb {
+        AssemblyWnb {
+            wnbs: src_as
+                .get_network_refs()
+                .into_iter()
+                .map(|x| NetworkWnb::from(x))
+                .collect(),
+        }
+    }
+}
+
+#[async_trait]
+impl<AJW, AssemblyType, ATF> TrainingStrategy<AssemblyType, ATF> for WeightJitterStrat<AJW>
+where
+    AJW: Fn(f32, f32, f32) -> f32 + Send,
+    AssemblyType: Assembly + Send,
+    ATF: AssemblyFrame<AssemblyType> + Send,
 {
     fn reset_training(&mut self) {
         self.curr_jitter_width = self.jitter_width;
     }
 
-    fn epoch(
-        &mut self,
-        net: &mut SimpleNeuralNetwork,
-        frame: &mut Box<dyn TrainingFrame>,
-    ) -> Result<f32, String> {
+    async fn epoch(&mut self, assembly: &mut AssemblyType, frame: &mut ATF) -> Result<f32, String> {
         debug_assert!(self.num_jitters > 0);
         debug_assert!(self.jitter_width >= 0.0);
         debug_assert!(self.num_steps_per_epoch > 0);
         debug_assert!(self.step_factor >= 0.0);
 
-        let mut output = vec![0.0; net.output_size()?];
+        let reference_wnb: AssemblyWnb = AssemblyWnb::from(&*assembly);
+        let reference_fitness = frame.run(assembly);
 
-        let reference_wnb: WnbList = WnbList::from(&*net);
-        let reference_fitness = self.avg_reference_fitness(frame, net)?;
-
-        let mut new_wnb: WnbList = reference_wnb.clone();
+        let mut new_wnb: AssemblyWnb = reference_wnb.clone();
         // new_wnb.zero();
 
-        let distrib = Normal::new(0.0, self.curr_jitter_width).unwrap();
-        let mut jitter_results: Vec<(WnbList, f32)> =
+        let distrib = Normal::<f32>::new(0.0, self.curr_jitter_width).unwrap();
+        let mut jitter_results: Vec<(AssemblyWnb, f32)> =
             vec![(reference_wnb.clone(), 0.0); self.num_jitters];
 
         for result in &mut jitter_results {
             result.0.jitter(&distrib);
         }
 
+        let reference_fitness = reference_fitness.await.map_err(|ts| ts.to_string())?;
+
         // Get fitnesses
         for result in &mut jitter_results {
-            result.0.apply_to(net);
+            result.0.apply_to(assembly);
 
-            frame.reset_frame();
+            let fit = frame.run(assembly).await.map_err(|ts| ts.to_string())?;
 
-            for _ in 0..self.num_steps_per_epoch {
-                let next_input = frame.next_training_case();
-                net.compute_values(&next_input, &mut output)?;
-
-                let fit = frame.get_fitness(&next_input, &output);
-
-                let delta_fit = fit - reference_fitness;
-                result.1 += delta_fit;
-            }
-
+            let delta_fit = fit - reference_fitness;
+            result.1 += delta_fit;
             result.1 /= self.num_steps_per_epoch as f32;
         }
-
-        // Apply jitters
 
         let min_fitness = jitter_results
             .iter()
@@ -370,19 +410,21 @@ where
         if num_ok_jitters > 0 {
             let step_factor = self.step_factor / num_ok_jitters as f32;
 
+            // Normalize delta fitnesses and use them to weight jitter weights
+            // and biases proportionately when applying them to the ref. net.
             for (wnbs, fitness) in &mut jitter_results {
                 if self.apply_bad_jitters || *fitness > 0.0 {
                     let fitness_scale = (*fitness - min_fitness)
-                        / (if max_fitness == min_fitness {
+                        / if max_fitness == min_fitness {
                             1.0
                         } else {
                             max_fitness - min_fitness
-                        })
+                        }
                         * 2.0
                         - 1.0;
 
                     wnbs.sub_from(&reference_wnb);
-                    wnbs.scale(fitness_scale * step_factor);
+                    wnbs.scale((fitness_scale * step_factor) as f32);
                     wnbs.add_to(&mut new_wnb);
                 }
             }
@@ -399,12 +441,12 @@ where
         if self.adaptive_jitter_width.is_some() {
             self.curr_jitter_width = self.adaptive_jitter_width.as_ref().unwrap()(
                 self.curr_jitter_width,
-                max_fitness - reference_fitness,
-                reference_fitness,
+                (max_fitness - reference_fitness) as f32,
+                (reference_fitness) as f32,
             );
         }
 
-        new_wnb.apply_to(net);
+        new_wnb.apply_to(assembly);
 
         Ok(max_fitness + reference_fitness)
     }

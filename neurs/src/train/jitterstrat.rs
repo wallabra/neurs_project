@@ -337,7 +337,7 @@ where
             wnbs: src_as
                 .get_network_refs()
                 .into_iter()
-                .map(|x| NetworkWnb::from(x))
+                .map(NetworkWnb::from)
                 .collect(),
         }
     }

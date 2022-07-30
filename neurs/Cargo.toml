@@ -1,7 +1,7 @@
 [package]
 name = "neurs"
 description = "A simple, feed-forward-only, but efficient, neural network and reinforcement learning library"
-version = "0.1.0-pre1"
+version = "0.1.0-pre2"
 edition = "2021"
 authors = [
     "Gustavo Ramos \"Gustavo6046\" Rehermann <rehermann6046@gmail.com>"

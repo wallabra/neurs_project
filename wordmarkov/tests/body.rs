@@ -1,6 +1,6 @@
 #![cfg(test)]
 
-use super::prelude::*;
+use wordmarkov::prelude::*;
 
 #[test]
 fn test_chain_parsing() {

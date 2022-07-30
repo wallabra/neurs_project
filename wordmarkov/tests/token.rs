@@ -1,6 +1,6 @@
 #![cfg(test)]
 
-use super::token::*;
+use wordmarkov::prelude::*;
 
 #[test]
 fn test_token_join_1() {

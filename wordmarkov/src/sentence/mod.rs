@@ -7,7 +7,3 @@ pub mod lex;
 pub mod token;
 
 pub mod prelude;
-
-// Tests
-mod test_lex;
-mod test_token;

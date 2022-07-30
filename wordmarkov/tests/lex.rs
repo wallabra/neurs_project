@@ -1,7 +1,6 @@
 #![cfg(test)]
 
-use super::lex::Lexer;
-use super::token::Token;
+use wordmarkov::prelude::*;
 
 #[test]
 fn test_split_sentence_1() {

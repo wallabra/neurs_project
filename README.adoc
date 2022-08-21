@@ -1,5 +1,4 @@
-Neurs Project
------------
+= Neurs Project
 :author: Gustavo Ramos Rehermann
 :toc:
 :numbered:

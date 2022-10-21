@@ -114,18 +114,6 @@ impl<'a> Iterator for Lexer<'a> {
             let char = chars.next();
             let ctype = self.char_type(char);
 
-            /*if cfg!(test) {
-                println!(
-                    "{}..={}\t {:?}\t | {:?} \t{:?}\t ({:?})",
-                    self.start,
-                    self.head,
-                    self.state,
-                    char,
-                    ctype,
-                    self.peek_next()
-                );
-            }*/
-
             if &ctype
                 != (if self.state == LexingType::PostBegin {
                     &LexingType::Punct
@@ -144,7 +132,7 @@ impl<'a> Iterator for Lexer<'a> {
                 return Some(res);
             }
 
-            self.head += 1;
+            self.head += char.map_or(1, |x| x.len_utf8());
         }
     }
 }

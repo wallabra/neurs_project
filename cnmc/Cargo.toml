@@ -7,7 +7,7 @@ license-file = "LICENSE.md"
 keywords = ["neural", "markov", "chatbot", "machine-learning", "neural-network"]
 website = "https://github.com/wallabra/neurs_project"
 authors = [
-    "Gustavo Ramos \"Gustavo6046\" Rehermann <rehermann6046@gmail.com>"
+	"Gustavo Ramos Rehermann (wallabra) <rehermann6046@gmail.com>"
 ]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

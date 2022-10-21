@@ -12,13 +12,13 @@ use std::collections::LinkedList;
 use std::rc::Rc;
 
 /// The direction in which to traverse the Markov chain.
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub enum MarkovTraverseDir {
     Forward,
     Reverse,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum MarkovSeed<'a> {
     Word(&'a str),
     Id(usize),

@@ -8,7 +8,7 @@
  * A token – can be either a Word or a Punct, or the beginning or end of a
  * parsed sentence.
  */
-#[derive(PartialEq, Debug, Clone)]
+#[derive(Eq, PartialEq, Debug, Clone)]
 pub enum Token<'a> {
     /// A word, a sequence of characters bounded by non-words.
     ///

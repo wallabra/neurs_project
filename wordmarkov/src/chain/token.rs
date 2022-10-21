@@ -7,7 +7,7 @@ use std::fmt::Formatter;
 use std::rc::Rc;
 
 /// A Markov token.
-#[derive(PartialEq, Debug)]
+#[derive(Eq, PartialEq, Debug)]
 pub enum MarkovToken<'a> {
     Begin,
     End,
@@ -53,7 +53,7 @@ impl<'a> From<&LexedToken<'a>> for MarkovToken<'a> {
 }
 
 /// A Markov token, but owned. Only used from MarkovChain.
-#[derive(PartialEq, Debug)]
+#[derive(Eq, PartialEq, Debug)]
 pub enum MarkovTokenOwned {
     Begin,
     End,

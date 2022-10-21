@@ -4,7 +4,7 @@ description = "A program to generate, save, load and interact with a cnmc brain"
 version = "0.1.0-pre0"
 edition = "2021"
 license-file = "LICENSE.md"
-keywords = ["console", "markov", "chatbot", "machine learning", "cnmc"]
+keywords = ["console", "markov", "chatbot", "machine-learning", "cnmc"]
 website = "https://github.com/wallabra/neurs_project"
 authors = [
     "Gustavo Ramos \"Gustavo6046\" Rehermann <rehermann6046@gmail.com>"

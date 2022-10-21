@@ -4,7 +4,7 @@ description = "A simple but flexible Markov chain library, specifically for text
 version = "0.1.0"
 edition = "2021"
 license-file = "LICENSE.md"
-keywords = ["markov", "markov chain", "text", "chatbot", "lightweight"]
+keywords = ["markov", "markov-chain", "text", "chatbot", "lightweight"]
 repository = "https://github.com/wallabra/neurs_project"
 authors = [
     "Gustavo Ramos \"Gustavo6046\" Rehermann <rehermann6046@gmail.com>"

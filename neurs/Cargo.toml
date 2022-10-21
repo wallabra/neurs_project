@@ -1,7 +1,7 @@
 [package]
 name = "neurs"
 description = "A simple, feed-forward-only, but efficient, neural network and reinforcement learning library"
-version = "0.1.0"
+version = "0.1.0-r1"
 edition = "2021"
 license-file = "LICENSE.md"
 keywords = ["neural", "neural-network", "evolution", "machine-learning", "lightweight"]
@@ -9,6 +9,7 @@ repository = "https://github.com/wallabra/neurs_project"
 authors = [
 	"Gustavo Ramos Rehermann (wallabra) <rehermann6046@gmail.com>"
 ]
+readme = "README.adoc"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

@@ -9,6 +9,7 @@ website = "https://github.com/wallabra/neurs_project"
 authors = [
 	"Gustavo Ramos Rehermann (wallabra) <rehermann6046@gmail.com>"
 ]
+readme = "README.adoc"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

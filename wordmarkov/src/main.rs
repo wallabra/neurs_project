@@ -5,13 +5,13 @@ use wordmarkov::prelude::*;
 
 const MAX_LEN: usize = 450;
 
-fn parse(chain: &mut MarkovChain, prompt: &String) {
+fn parse(chain: &mut MarkovChain, prompt: &str) {
     if !prompt.is_empty() {
         chain.parse_sentence(prompt);
     }
 }
 
-fn produce(chain: &MarkovChain, prompt: &String) -> String {
+fn produce(chain: &MarkovChain, prompt: &str) -> String {
     let seed = if !prompt.is_empty() {
         let lexed = Lexer::new(prompt);
         let words: Vec<&str> = lexed
@@ -53,8 +53,8 @@ fn main() {
     io::stdout().flush().unwrap();
 
     while stdin.read_line(&mut buffer).is_ok() {
-        parse(&mut chain, &buffer);
-        print!("\n{}\n\n> ", produce(&chain, &buffer));
+        parse(&mut chain, &buffer.trim());
+        print!("{}\n\n> ", produce(&chain, &buffer.trim()));
         io::stdout().flush().unwrap();
     }
 }

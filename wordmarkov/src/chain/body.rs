@@ -432,6 +432,10 @@ impl MarkovChain {
 
         let mut to_register: Vec<(LexedToken, LexedToken, LexedToken)> = vec![];
 
+        if sentence.is_empty() {
+            return;
+        }
+
         loop {
             if curr_token.is_none() {
                 panic!("Found a none token prematurely!");
@@ -441,6 +445,10 @@ impl MarkovChain {
 
             let punct = lexer.next();
             let next_token = lexer.next();
+
+            if punct.is_none() || next_token.is_none() {
+                return;
+            }
 
             let punct = punct.unwrap();
             let next_token = next_token.unwrap();
@@ -479,6 +487,11 @@ impl MarkovChain {
             .unwrap()
     }
 
+    /// Returns whether the chain is empty – has no words in it.
+    pub fn is_empty(&self) -> bool {
+        self.words.is_empty()
+    }
+
     /**
      * Composes a sentence by traversing this chain forward and backward from a
      * given 'seed word'.
@@ -494,6 +507,10 @@ impl MarkovChain {
         use MarkovTraverseDir::*;
 
         let mut rng = thread_rng();
+
+        if self.is_empty() {
+            return Err("Cannot compose a sentence from an empty chain".into());
+        }
 
         let seed = self.get_seed(seed, &mut rng)?;
 

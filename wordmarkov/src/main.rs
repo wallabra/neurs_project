@@ -24,16 +24,24 @@ fn produce(chain: &MarkovChain, prompt: &String) -> String {
             })
             .collect();
 
-        let mut rng = rand::thread_rng();
-        MarkovSeed::Word(words[rng.gen_range(0..words.len())])
+        if words.is_empty() {
+            MarkovSeed::Random
+        }
+
+        else {
+            let mut rng = rand::thread_rng();
+            MarkovSeed::Word(words[rng.gen_range(0..words.len())])
+        }
     } else {
         MarkovSeed::Random
     };
 
-    chain
-        .compose_sentence(seed, &mut WeightedRandomSelector, Some(MAX_LEN))
-        .unwrap()
-        .to_string()
+    let res = chain.compose_sentence(seed, &mut WeightedRandomSelector, Some(MAX_LEN));
+
+    match res {
+        Ok(res) => res.to_string(),
+        Err(res) => format!("{{ ERROR: {} }}", res)
+    }
 }
 
 fn main() {

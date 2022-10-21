@@ -87,6 +87,7 @@ impl<'a> From<&'a MarkovToken<'a>> for &'a str {
 }
 
 /// A list of [MarkovToken]s; a sentence.
+#[derive(Debug)]
 pub struct TokenList<'a>(pub LinkedList<MarkovToken<'a>>);
 
 impl<'a> TokenList<'a> {

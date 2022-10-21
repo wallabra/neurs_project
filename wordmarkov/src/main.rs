@@ -1,6 +1,6 @@
 use rand::Rng;
-use std::io;
-use std::io::Write;
+use std::io::{self, BufRead, Write};
+use std::{env, fs};
 use wordmarkov::prelude::*;
 
 const MAX_LEN: usize = 450;
@@ -26,9 +26,7 @@ fn produce(chain: &MarkovChain, prompt: &str) -> String {
 
         if words.is_empty() {
             MarkovSeed::Random
-        }
-
-        else {
+        } else {
             let mut rng = rand::thread_rng();
             MarkovSeed::Word(words[rng.gen_range(0..words.len())])
         }
@@ -40,12 +38,33 @@ fn produce(chain: &MarkovChain, prompt: &str) -> String {
 
     match res {
         Ok(res) => res.to_string(),
-        Err(res) => format!("{{ ERROR: {} }}", res)
+        Err(res) => format!("{{ ERROR: {} }}", res),
     }
+}
+
+fn parse_file(chain: &mut MarkovChain, path: &str) -> io::Result<()> {
+    let file = fs::File::open(path)?;
+
+    for line in io::BufReader::new(file).lines().flatten() {
+        parse(chain, line.trim());
+    }
+
+    Ok(())
 }
 
 fn main() {
     let mut chain: MarkovChain = MarkovChain::new();
+
+    // Read files from command args to parse into the chain.
+    let args: Vec<String> = env::args().collect();
+
+    for arg in &args[1..] {
+        if let Err(err) = parse_file(&mut chain, arg) {
+            println!("WARN: Error reading file {}: {}", arg, err);
+        }
+    }
+
+    // Start the prompt loop.
     let mut buffer = String::new();
     let stdin = io::stdin();
 
@@ -53,8 +72,9 @@ fn main() {
     io::stdout().flush().unwrap();
 
     while stdin.read_line(&mut buffer).is_ok() {
-        parse(&mut chain, &buffer.trim());
-        print!("{}\n\n> ", produce(&chain, &buffer.trim()));
+        let trimmed = buffer.trim();
+        parse(&mut chain, trimmed);
+        print!("{}\n\n> ", produce(&chain, trimmed));
         io::stdout().flush().unwrap();
     }
 }

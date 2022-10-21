@@ -108,19 +108,19 @@ impl<'a> Iterator for Lexer<'a> {
             return Some(Token::Punct(""));
         }
 
-        let mut chars = self.from.chars().skip(self.head);
+        let chars = &mut self.from[self.head..].chars();
 
         loop {
-            let char = chars.next();
-            let ctype = self.char_type(char);
+            let nextchar = chars.next();
+            let ctype = self.char_type(nextchar);
 
-            if &ctype
-                != (if self.state == LexingType::PostBegin {
-                    &LexingType::Punct
-                } else {
-                    &self.state
-                })
-            {
+            let final_ctype = if self.state == LexingType::PostBegin {
+                &LexingType::Punct
+            } else {
+                &self.state
+            };
+
+            if &ctype != final_ctype {
                 let res = self.peek_next();
 
                 self.state = ctype;
@@ -132,7 +132,7 @@ impl<'a> Iterator for Lexer<'a> {
                 return Some(res);
             }
 
-            self.head += char.map_or(1, |x| x.len_utf8());
+            self.head += nextchar.map_or(1, |x| x.len_utf8());
         }
     }
 }

@@ -76,5 +76,6 @@ fn main() {
         parse(&mut chain, trimmed);
         print!("{}\n\n> ", produce(&chain, trimmed));
         io::stdout().flush().unwrap();
+        buffer.clear();
     }
 }

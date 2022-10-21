@@ -122,7 +122,7 @@ dependencies = [
 
 [[package]]
 name = "neurs"
-version = "0.1.0-pre1"
+version = "0.1.0-pre2"
 dependencies = [
  "async-trait",
  "float_eq",

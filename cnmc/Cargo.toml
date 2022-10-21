@@ -1,8 +1,11 @@
 [package]
 name = "cnmc"
-description = "An advanced sentence generation model, which employs a Markov chain (wordmarkov) and some neural networks (neurs)"
+description = "Convolutional Neural Markov Chain: An advanced sentence generation model, using a Markov chain (wordmarkov) and neural networks (neurs)"
 version = "0.1.0-pre0"
 edition = "2021"
+license-file = "LICENSE.md"
+keywords = ["neural", "markov", "chatbot", "machine learning", "neural network"]
+website = "https://github.com/wallabra/neurs_project"
 authors = [
     "Gustavo Ramos \"Gustavo6046\" Rehermann <rehermann6046@gmail.com>"
 ]

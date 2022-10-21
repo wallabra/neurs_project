@@ -1,8 +1,11 @@
 [package]
 name = "neurs"
 description = "A simple, feed-forward-only, but efficient, neural network and reinforcement learning library"
-version = "0.1.0-pre2"
+version = "0.1.0"
 edition = "2021"
+license-file = "LICENSE.md"
+keywords = ["neural", "neural network", "evolution", "machine learning", "lightweight"]
+repository = "https://github.com/wallabra/neurs_project"
 authors = [
     "Gustavo Ramos \"Gustavo6046\" Rehermann <rehermann6046@gmail.com>"
 ]

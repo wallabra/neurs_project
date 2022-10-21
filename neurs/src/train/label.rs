@@ -178,7 +178,7 @@ where
         for (case, desired_label) in &self.inputs {
             let desired_idx = desired_label.index() as usize;
 
-            assembly.classifier.compute_values(&case, &mut outputs)?;
+            assembly.classifier.compute_values(case, &mut outputs)?;
 
             fitness -= outputs
                 .iter()

@@ -1,7 +1,7 @@
 [package]
 name = "wordmarkov"
 description = "A simple but flexible Markov chain library, specifically for text sentences, which handles punctuation and whitespace"
-version = "0.1.3"
+version = "0.1.4"
 edition = "2021"
 license-file = "LICENSE.md"
 keywords = ["markov", "markov-chain", "text", "chatbot", "lightweight"]

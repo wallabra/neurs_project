@@ -14,10 +14,10 @@ readme = "README.adoc"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-async-trait = "0.1.56"
-float_eq = "1.0.0"
+async-trait = "0.1.58"
+float_eq = "1.0.1"
 rand = "0.8.5"
 rand_distr = "0.4.3"
 
 [dev-dependencies]
-tokio = { version = "1.20.1", features = ["macros", "rt"] }
+tokio = { version = "1.21.2", features = ["macros", "rt"] }

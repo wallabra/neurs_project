@@ -18,6 +18,8 @@ async-trait = "0.1.58"
 float_eq = "1.0.1"
 rand = "0.8.5"
 rand_distr = "0.4.3"
+rayon = "1.5.3"
+serde = "1.0.147"
 
 [dev-dependencies]
 tokio = { version = "1.21.2", features = ["macros", "rt"] }

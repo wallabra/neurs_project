@@ -16,5 +16,5 @@ readme = "README.adoc"
 [dependencies]
 color_space = "0.5.3"
 neurs = { path = "../neurs" }
-png = "0.17.6"
+png = "0.17.7"
 

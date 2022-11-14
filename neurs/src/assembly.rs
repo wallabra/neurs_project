@@ -11,7 +11,7 @@ extern crate serde;
 /// An assembly; an use case where multiple networks are required for
 /// something.
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub trait Assembly: Clone {
+pub trait Assembly {
     /// Get immutable references to the neural networks used by this
     /// assembly.
     fn get_network_refs(&self) -> &[SimpleNeuralNetwork];

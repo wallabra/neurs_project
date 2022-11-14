@@ -15,4 +15,5 @@ readme = "README.adoc"
 
 [dependencies]
 rand = "0.8.5"
-serde = "1.0.147"
+serde = { version = "1.0.147", optional = true }
+

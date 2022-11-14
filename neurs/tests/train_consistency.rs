@@ -4,11 +4,8 @@ mod tests {
     use neurs::train::{label, trainer};
     use neurs::{activations, neuralnet};
 
-    fn test_net<MSF, LT>(
-        classifier: NeuralClassifier,
-        test_cases: Vec<Vec<f32>>,
-        makes_sense: MSF,
-    ) where
+    fn test_net<MSF, LT>(classifier: NeuralClassifier, test_cases: Vec<Vec<f32>>, makes_sense: MSF)
+    where
         MSF: Fn(&[f32], &[f32]) -> bool,
         LT: TrainingLabel,
     {

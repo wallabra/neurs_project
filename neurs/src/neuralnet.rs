@@ -10,6 +10,10 @@ use super::activations::relu;
 use rand::prelude::*;
 use rand_distr::*;
 
+#[cfg(feature = "serde")]
+#[macro_use]
+extern crate serde;
+
 /**
  * A neural network activation function.
  */
@@ -18,7 +22,8 @@ pub type NNActivation = fn(f32) -> f32;
 /**
  * A simple dense layer.
  */
-#[derive(Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Clone, Debug)]
 pub struct NeuralLayer {
     /// The activation function of the layer.
     pub activation: Box<NNActivation>,
@@ -118,7 +123,8 @@ impl NeuralLayer {
 /**
  * A simple feed-forward neural network.
  */
-#[derive(Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Clone, Debug)]
 pub struct SimpleNeuralNetwork {
     /// A list of layers in this network. The last one is the output layer.
     pub layers: Vec<NeuralLayer>,

@@ -124,8 +124,8 @@ impl WeightsAndBiases {
     }
 
     fn jitter<D: Distribution<f32>>(&mut self, distrib: &D) {
-        jitter_values(&mut self.w, &distrib);
-        jitter_values(&mut self.b, &distrib);
+        jitter_values(&mut self.w, distrib);
+        jitter_values(&mut self.b, distrib);
     }
 
     fn apply_to(&self, dest_layer: &mut NeuralLayer) {
@@ -277,7 +277,7 @@ impl AssemblyWnb {
         let mut netrefs = dest_net.get_networks_mut();
 
         for (nr, wnb) in netrefs.iter_mut().zip(self.wnbs.iter()) {
-            wnb.apply_to(*nr);
+            wnb.apply_to(nr);
         }
     }
 
@@ -336,7 +336,7 @@ where
         AssemblyWnb {
             wnbs: src_as
                 .get_network_refs()
-                .into_iter()
+                .iter()
                 .map(NetworkWnb::from)
                 .collect(),
         }
@@ -403,7 +403,7 @@ where
         } else {
             jitter_results
                 .iter()
-                .map(|x| if x.1 > 0.0 { 1_usize } else { 0_usize })
+                .map(|x| usize::from(x.1 > 0.0))
                 .sum::<usize>()
         };
 

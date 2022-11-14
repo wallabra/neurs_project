@@ -53,11 +53,7 @@ impl TrainingLabel for bool {
     /// a label is encoded as an one-hot vector (one where
     /// everything is 0, except for a given index, which becomes 1).
     fn index(self: &bool) -> usize {
-        if *self {
-            1
-        } else {
-            0
-        }
+        *self as usize
     }
 
     /// Converts from an index into a typed label.
@@ -155,12 +151,20 @@ pub struct NeuralClassifier {
 }
 
 impl Assembly for NeuralClassifier {
-    fn get_network_refs(&self) -> Vec<&SimpleNeuralNetwork> {
-        vec![&self.classifier]
+    fn get_network_refs(&self) -> &[SimpleNeuralNetwork] {
+        self.classifier.get_network_refs()
     }
 
-    fn get_networks_mut(&mut self) -> Vec<&mut SimpleNeuralNetwork> {
-        vec![&mut self.classifier]
+    fn get_networks_mut(&mut self) -> &mut[SimpleNeuralNetwork] {
+        self.classifier.get_networks_mut()
+    }
+
+    fn len(&self) -> usize {
+        1
+    }
+
+    fn is_empty(&self) -> bool {
+        false
     }
 }
 

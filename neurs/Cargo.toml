@@ -19,7 +19,7 @@ float_eq = "1.0.1"
 rand = "0.8.5"
 rand_distr = "0.4.3"
 rayon = "1.5.3"
-serde = { version = "1.0.147", optional = true }
+serde = { version = "1.0.147", optional = true, features = ["derive"] }
 
 [dev-dependencies]
 tokio = { version = "1.21.2", features = ["macros", "rt"] }

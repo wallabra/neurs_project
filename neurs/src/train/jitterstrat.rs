@@ -370,9 +370,7 @@ where
         let mut jitter_results: Vec<(AssemblyWnb, f32)> =
             vec![(reference_wnb.clone(), 0.0); self.num_jitters];
 
-        for result in &mut jitter_results {
-            result.0.jitter(&distrib);
-        }
+        jitter_results.iter_mut().for_each(|r| r.0.jitter(&distrib));
 
         let reference_fitness = reference_fitness.await.map_err(|ts| ts.to_string())?;
 

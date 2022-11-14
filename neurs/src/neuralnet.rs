@@ -100,21 +100,19 @@ impl NeuralLayer {
 
         inputs = &inputs[0..self.input_size];
         outputs = &mut outputs[0..self.output_size];
+        let weight_chunks = self.weights.chunks(self.input_size);
 
-        for (i, out) in outputs.iter_mut().enumerate() {
-            let idx_base: usize = (i * self.input_size) as usize;
-
+        outputs.iter_mut().zip(&self.biases).zip(weight_chunks).for_each(|((out, b), wc)| {
             let value = (self.activation)(
-                self.biases[i]
-                    + inputs
+                b + inputs
                         .iter()
-                        .zip(&self.weights[idx_base..])
+                        .zip(wc)
                         .map(|(inp, w)| (*inp) * (*w))
                         .sum::<f32>(),
             );
 
             *out = value;
-        }
+        });
 
         Ok(())
     }

@@ -146,6 +146,7 @@ where
 }
 
 /// A classifier assembly.
+#[derive(Clone, Debug)]
 pub struct NeuralClassifier {
     pub classifier: SimpleNeuralNetwork,
 }
@@ -155,7 +156,7 @@ impl Assembly for NeuralClassifier {
         self.classifier.get_network_refs()
     }
 
-    fn get_networks_mut(&mut self) -> &mut[SimpleNeuralNetwork] {
+    fn get_networks_mut(&mut self) -> &mut [SimpleNeuralNetwork] {
         self.classifier.get_networks_mut()
     }
 

@@ -5,19 +5,20 @@ use async_trait::async_trait;
 use crate::prelude::SimpleNeuralNetwork;
 
 #[cfg(feature = "serde")]
-#[macro_use] extern crate serde;
+#[macro_use]
+extern crate serde;
 
 /// An assembly; an use case where multiple networks are required for
 /// something.
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub trait Assembly {
+pub trait Assembly: Clone {
     /// Get immutable references to the neural networks used by this
     /// assembly.
     fn get_network_refs(&self) -> &[SimpleNeuralNetwork];
 
     /// Get mutable references to the neural networks used by this
     /// assembly.
-    fn get_networks_mut(&mut self) -> &mut[SimpleNeuralNetwork];
+    fn get_networks_mut(&mut self) -> &mut [SimpleNeuralNetwork];
 
     /// Get the number of networks in this Assembly.
     fn len(&self) -> usize {
@@ -37,7 +38,7 @@ impl Assembly for SimpleNeuralNetwork {
         std::slice::from_ref(self)
     }
 
-    fn get_networks_mut(&mut self) -> &mut[SimpleNeuralNetwork] {
+    fn get_networks_mut(&mut self) -> &mut [SimpleNeuralNetwork] {
         std::slice::from_mut(self)
     }
 
@@ -62,4 +63,3 @@ where
     /// Returns a promise of a fitness value.
     async fn run(&mut self, assembly: &mut AssemblyType) -> Result<f32, Self::E>;
 }
-

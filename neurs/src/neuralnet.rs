@@ -102,17 +102,21 @@ impl NeuralLayer {
         outputs = &mut outputs[0..self.output_size];
         let weight_chunks = self.weights.chunks(self.input_size);
 
-        outputs.iter_mut().zip(&self.biases).zip(weight_chunks).for_each(|((out, b), wc)| {
-            let value = (self.activation)(
-                b + inputs
+        outputs
+            .iter_mut()
+            .zip(&self.biases)
+            .zip(weight_chunks)
+            .for_each(|((out, b), wc)| {
+                let value = (self.activation)(
+                    b + inputs
                         .iter()
                         .zip(wc)
                         .map(|(inp, w)| (*inp) * (*w))
                         .sum::<f32>(),
-            );
+                );
 
-            *out = value;
-        });
+                *out = value;
+            });
 
         Ok(())
     }

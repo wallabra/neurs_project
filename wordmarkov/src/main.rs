@@ -52,6 +52,10 @@ fn parse_file(chain: &mut MarkovChain, path: &str) -> io::Result<()> {
     Ok(())
 }
 
+fn status_line(chain: &MarkovChain) -> String {
+    format!("t{} e{}", chain.len(), chain.num_edges())
+}
+
 fn main() {
     let mut chain: MarkovChain = MarkovChain::new();
 
@@ -67,14 +71,23 @@ fn main() {
     // Start the prompt loop.
     let mut buffer = String::new();
     let stdin = io::stdin();
-
-    print!("> ");
+ 
+    print!("({})> ", status_line(&chain));
     io::stdout().flush().unwrap();
 
     while stdin.read_line(&mut buffer).is_ok() {
         let trimmed = buffer.trim();
-        parse(&mut chain, trimmed);
-        print!("{}\n\n> ", produce(&chain, trimmed));
+        let learn = matches!(trimmed.chars().next(), Some(':'));
+
+        let trimmed = if learn { &trimmed[1..] } else { trimmed };
+
+        print!("{}\n\n", produce(&chain, trimmed));
+
+        if learn {
+            parse(&mut chain, trimmed);
+        }
+
+        print!("({})> ", status_line(&chain));
         io::stdout().flush().unwrap();
         buffer.clear();
     }

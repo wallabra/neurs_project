@@ -285,7 +285,6 @@ impl MarkovChain {
                 let pick = Uniform::new(0.0_f32, total).sample(rng);
 
                 let mut curr = 0.0;
-                let mut res = None;
 
                 for (edge, weight) in edges
                     .iter()
@@ -295,12 +294,11 @@ impl MarkovChain {
                     curr += weight;
 
                     if curr >= pick {
-                        res = Some(edge);
-                        break;
+                        return edge;
                     }
                 }
 
-                res.unwrap()
+                unreachable!();
             }
         }
     }
@@ -316,7 +314,8 @@ impl MarkovChain {
      *
      * `inbetween` is all of the whitespace and punctuation lying between
      * `from` and `dest`. Simply concatenate `from` with `inbetween.into()`
-     * with `dest.into()`, in that order.
+     * with `dest.into()`, in that order - or the reverse order, if direction
+     * is Reverse.
      */
     pub fn select_next_word(
         &self,

@@ -3,7 +3,7 @@
 use wordmarkov::prelude::*;
 
 #[test]
-fn test_chain_parsing() {
+fn test_chain_parsing_basic() {
     let mut chain: MarkovChain = MarkovChain::new();
 
     chain.parse_sentence("Mary had a little lamb");
@@ -11,6 +11,13 @@ fn test_chain_parsing() {
     assert_eq!(chain.len(), 9); // BEGIN and END count, as well as ' ' and ''!
     assert_eq!(chain.num_edges(), 6);
     assert_eq!(chain.num_textlets(), 9);
+}
+
+#[test]
+fn test_chain_parsing_textlet_order() {
+    let mut chain: MarkovChain = MarkovChain::new();
+
+    chain.parse_sentence("Mary had a little lamb");
 
     // Order usually doesn't really matter, but psst,
     // if it's well-defined behaviour, might as well test

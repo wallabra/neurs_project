@@ -63,11 +63,12 @@ impl Edge {
 pub struct MarkovChain {
     textlet_bag: Vec<MarkovTokenOwned>,
     textlet_indices: HashMap<Rc<str>, usize>,
-    words: Vec<usize>,
 
     edge_list: Vec<Edge>,
     edges: HashMap<usize, Vec<usize>>,
     reverse_edges: HashMap<usize, Vec<usize>>,
+
+    seedbag: Vec<usize>,
 }
 
 impl Default for MarkovChain {
@@ -84,11 +85,12 @@ impl MarkovChain {
         MarkovChain {
             textlet_bag: vec![MarkovTokenOwned::Begin, MarkovTokenOwned::End],
             textlet_indices: HashMap::new(),
-            words: Vec::new(),
 
             edge_list: Vec::new(),
             edges: HashMap::new(),
             reverse_edges: HashMap::new(),
+
+            seedbag: Vec::new(),
         }
     }
 
@@ -192,15 +194,10 @@ impl MarkovChain {
      *
      * `from` and `to` must be existing textlet indices. Same with
      * `punct` – it must be an existing index, and not a space.
-     *
-     * For both `from` and `to`, if the index is not found in the
-     * `self.words` list, it will be added to it.
      */
-    pub fn register_edge(&mut self, from: usize, to: usize, punct: usize) {
-        for item in [from, to] {
-            if !self.words.contains(&item) {
-                self.words.push(item);
-            }
+    fn register_edge(&mut self, from: usize, to: usize, punct: usize) {
+        if !self.seedbag.contains(&from) {
+            self.seedbag.push(from);
         }
 
         if let Some(edgevec) = self.edges.get_mut(&from) {
@@ -246,8 +243,8 @@ impl MarkovChain {
             Id(seed) => Ok(seed),
 
             Random => {
-                let from: usize = Uniform::new(0, self.words.len()).sample(rng);
-                Ok(self.words[from])
+                let from: usize = Uniform::new(0, self.seedbag.len()).sample(rng);
+                Ok(self.seedbag[from])
             }
         }
     }
@@ -390,19 +387,6 @@ impl MarkovChain {
     }
 
     /**
-     * The number of words in this chain.
-     *
-     * Includes the internal tokens [MarkovTokenOwned::Begin] and
-     * [MarkovTokenOwned::End].
-     *
-     * Should be smaller than or, in extreme cases, equal to,
-     * [Self::num_textlets()].
-     */
-    pub fn num_words(&self) -> usize {
-        self.words.len()
-    }
-
-    /**
      * The number of textlets in this chain.
      *
      * Includes unique instances of whitespace or punctuation, as well as the
@@ -487,9 +471,14 @@ impl MarkovChain {
             .unwrap()
     }
 
-    /// Returns whether the chain is empty – has no words in it.
+    /// Get the size of the textlet_bag of this Markov chain.
+    pub fn len(&self) -> usize {
+        self.textlet_bag.len()
+    }
+
+    /// Returns whether the chain is empty.
     pub fn is_empty(&self) -> bool {
-        self.words.is_empty()
+        self.edge_list.is_empty()
     }
 
     /**

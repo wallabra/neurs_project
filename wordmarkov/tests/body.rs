@@ -8,7 +8,7 @@ fn test_chain_parsing() {
 
     chain.parse_sentence("Mary had a little lamb");
 
-    assert_eq!(chain.num_words(), 7); // BEGIN and END count!
+    assert_eq!(chain.len(), 9); // BEGIN and END count, as well as ' ' and ''!
     assert_eq!(chain.num_edges(), 6);
     assert_eq!(chain.num_textlets(), 9);
 

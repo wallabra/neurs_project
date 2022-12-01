@@ -165,27 +165,23 @@ impl MarkovChain {
         idx
     }
 
+    fn add_forward_edge(&mut self, edge_idx: usize) {
+        let edge = &self.edge_list[edge_idx];
+
+        if let Some(edgevec) = self.edges.get_mut(&edge.src_idx) {
+            edgevec.push(edge_idx);
+        } else {
+            self.edges.insert(edge.src_idx, vec![edge_idx]);
+        }
+    }
+    
     fn add_reverse_edge(&mut self, edge_idx: usize) {
         let edge = &self.edge_list[edge_idx];
 
-        match self.reverse_edges.get_mut(&edge.dst_idx) {
-            None => {
-                let rev_vec = vec![edge_idx];
-
-                self.reverse_edges.insert(edge.dst_idx, rev_vec);
-            }
-
-            Some(rev_vec) => {
-                for oedge in rev_vec.iter() {
-                    let oedge = self.edge_list.get(*oedge).unwrap();
-
-                    if edge.src_idx == oedge.src_idx && edge.pct_idx == oedge.pct_idx {
-                        return;
-                    }
-                }
-
-                rev_vec.push(edge_idx);
-            }
+        if let Some(edgevec) = self.reverse_edges.get_mut(&edge.dst_idx) {
+            edgevec.push(edge_idx);
+        } else {
+            self.reverse_edges.insert(edge.dst_idx, vec![edge_idx]);
         }
     }
 
@@ -212,14 +208,8 @@ impl MarkovChain {
         }
 
         let idx = self.push_new_edge(from, to, punct, None);
-        self.edges.insert(from, vec![idx]);
 
-        if let Some(edgevec) = self.edges.get_mut(&from) {
-            edgevec.push(idx);
-        } else {
-            self.edges.insert(from, vec![idx]);
-        }
-
+        self.add_forward_edge(idx);
         self.add_reverse_edge(idx);
     }
 
@@ -317,17 +307,16 @@ impl MarkovChain {
      * with `dest.into()`, in that order - or the reverse order, if direction
      * is Reverse.
      */
-    pub fn select_next_word(
+    pub fn select_next_word<R: Rng>(
         &self,
         seed: MarkovSeed,
         selector: &mut dyn MarkovSelector,
         direction: MarkovTraverseDir,
+        rng: &mut R
     ) -> Result<(MarkovToken<'_>, MarkovToken<'_>, usize, usize), String> {
         use MarkovTraverseDir::*;
 
-        let mut rng = thread_rng();
-
-        let from: usize = self.get_seed(seed, &mut rng)?;
+        let from: usize = self.get_seed(seed, rng)?;
 
         let edges = match direction {
             MarkovTraverseDir::Forward => self.edges.get(&from),
@@ -366,7 +355,7 @@ impl MarkovChain {
 
         let sel_type = selector.selection_type();
 
-        let best_edge: &Edge = self._weighted_select(sel_type, edges, &weights, &mut rng);
+        let best_edge: &Edge = self._weighted_select(sel_type, edges, &weights, rng);
 
         match direction {
             Forward => Ok((
@@ -494,11 +483,11 @@ impl MarkovChain {
         use MarkovToken::*;
         use MarkovTraverseDir::*;
 
-        let mut rng = thread_rng();
-
         if self.is_empty() {
             return Err("Cannot compose a sentence from an empty chain".into());
         }
+
+        let mut rng = thread_rng();
 
         let seed = self.get_seed(seed, &mut rng)?;
 
@@ -515,7 +504,7 @@ impl MarkovChain {
 
         while curr_backward != self.begin() {
             let (prev, punct, prvidx, _) =
-                self.select_next_word(Id(curr_backward), selector, Reverse)?;
+                self.select_next_word(Id(curr_backward), selector, Reverse, &mut rng)?;
 
             let new_len = len + punct.len() + prev.len();
 
@@ -536,9 +525,9 @@ impl MarkovChain {
             curr_backward = prvidx;
         }
 
-        while curr_forward != self.begin() {
+        while curr_forward != self.end() {
             let (next, punct, nxtidx, _) =
-                self.select_next_word(Id(curr_forward), selector, Forward)?;
+                self.select_next_word(Id(curr_forward), selector, Forward, &mut rng)?;
 
             let new_len = len + punct.len() + next.len();
 

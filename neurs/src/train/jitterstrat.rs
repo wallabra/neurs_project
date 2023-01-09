@@ -15,7 +15,6 @@
  */
 use crate::prelude::*;
 
-use async_trait::async_trait;
 use rand::thread_rng;
 use rand_distr::*;
 
@@ -101,6 +100,31 @@ where
 
             curr_jitter_width: options.jitter_width,
         }
+    }
+
+    fn get_reference<AssemblyType, FrameType, H1, H2>(
+        &mut self,
+        assembly: &mut AssemblyType,
+        frame: &mut FrameType,
+    ) -> Result<(AssemblyWnb, f32), String>
+    where
+        AssemblyType: Assembly + Clone,
+        FrameType: Frame<AssemblyType, ProdHandle = H1, TrainHandle = H2>,
+        H1: FrameHandle<AssemblyType>,
+        H2: FrameHandle<AssemblyType>,
+    {
+        let mut reference = frame
+            .start_train_run(assembly.clone())
+            .map_err(|(_, error_string)| error_string)?;
+
+        while !reference.poll_state().is_done() {}
+
+        if let FrameRunState::Error(err) = reference.poll_state() {
+            return Err(err);
+        }
+
+        let reference_wnb = AssemblyWnb::from(&*assembly);
+        Ok((reference_wnb, reference.get_fitness()))
     }
 }
 
@@ -343,56 +367,185 @@ where
     }
 }
 
-#[async_trait]
-impl<AJW, AssemblyType, ATF> TrainingStrategy<AssemblyType, ATF> for WeightJitterStrat<AJW>
+enum EpochJitterState<AssemblyType, HandleType>
 where
-    AJW: Fn(f32, f32, f32) -> f32 + Send,
-    AssemblyType: Assembly + Send,
-    ATF: AssemblyFrame<AssemblyType> + Send,
+    AssemblyType: Assembly + Clone,
+    HandleType: FrameHandle<AssemblyType>,
+{
+    Pending(AssemblyType),
+    Waiting(HandleType),
+    Running(HandleType),
+    Done(AssemblyType, f32),
+    Error(AssemblyType, String),
+}
+
+struct EpochState<AssemblyType, HandleType>
+where
+    AssemblyType: Assembly + Clone,
+    HandleType: FrameHandle<AssemblyType>,
+{
+    jitters: Vec<EpochJitterState<AssemblyType, HandleType>>,
+}
+
+impl<AssemblyType, HandleType> EpochJitterState<AssemblyType, HandleType>
+where
+    AssemblyType: Assembly + Clone,
+    HandleType: FrameHandle<AssemblyType>,
+{
+    pub fn is_done(&self) -> bool {
+        matches!(self, Done) || matches!(self, Error)
+    }
+}
+
+impl<AssemblyType, HandleType> EpochState<AssemblyType, HandleType>
+where
+    AssemblyType: Assembly + Clone,
+    HandleType: FrameHandle<AssemblyType>,
+{
+    pub fn init(template: &AssemblyType, num_jitters: usize, curr_jitter_width: f32) -> Self {
+        EpochState {
+            jitters: {
+                let mut res = vec![];
+
+                let reference_wnb: AssemblyWnb = AssemblyWnb::from(&*template);
+                let distrib = Normal::<f32>::new(0.0, curr_jitter_width).unwrap();
+
+                for _ in 0..num_jitters {
+                    let mut net = template.clone();
+
+                    let mut new_wnb: AssemblyWnb = reference_wnb.clone();
+
+                    new_wnb.jitter(&distrib);
+                    new_wnb.apply_to(&mut net);
+
+                    res.push(EpochJitterState::Pending(net));
+                }
+
+                res
+            },
+        }
+    }
+
+    fn handle_to_state(mut handle: HandleType) -> EpochJitterState<AssemblyType, HandleType> {
+        use EpochJitterState::*;
+
+        let state = handle.poll_state();
+        match state {
+            FrameRunState::Waiting => Waiting(handle),
+            FrameRunState::Running => Running(handle),
+            FrameRunState::Done => {
+                let fit = handle.get_fitness();
+                Done(handle.finish(), fit)
+            }
+            FrameRunState::Error(str) => Error(handle.finish(), str),
+        }
+    }
+
+    pub fn poll<FrameType, H1>(&mut self, frame: &mut FrameType) -> bool
+    where
+        FrameType: Frame<AssemblyType, ProdHandle = H1, TrainHandle = HandleType>,
+    {
+        for (index, state) in self.jitters.iter_mut().enumerate() {
+            use EpochJitterState::*;
+            match state {
+                Pending(assembly) => {
+                    if frame.can_run() {
+                        self.jitters[index] = match frame.start_train_run(assembly) {
+                            Ok(handle) => Self::handle_to_state(handle),
+                            Err((assembly, str)) => EpochJitterState::Error(assembly, str),
+                        }
+                    }
+                }
+
+                Waiting(handle) | Running(handle) => {
+                    self.jitters[index] = Self::handle_to_state(handle);
+                }
+
+                _ => {}
+            }
+        }
+
+        self.all_done()
+    }
+
+    fn all_done(&self) -> bool {
+        self.jitters.iter().all(|state| state.is_done())
+    }
+
+    pub fn results<FrameType, H1>(
+        self,
+        frame: &mut FrameType,
+    ) -> Vec<Result<(AssemblyWnb, f32), String>>
+    where
+        FrameType: Frame<AssemblyType, ProdHandle = H1, TrainHandle = HandleType>,
+    {
+        self.jitters
+            .into_iter()
+            .map(|x| match x {
+                EpochJitterState::Done(assembly, fit) => Ok((AssemblyWnb::from(&assembly), fit)),
+                EpochJitterState::Error(assembly, err) => Err(err),
+                _ => unreachable!(),
+            })
+            .collect()
+    }
+
+    pub fn results_ok_only<FrameType, H1>(self, frame: &mut FrameType) -> Vec<(AssemblyType, f32)>
+    where
+        FrameType: Frame<AssemblyType, ProdHandle = H1, TrainHandle = HandleType>,
+    {
+        self.jitters
+            .into_iter()
+            .filter_map(|x| match x {
+                EpochJitterState::Done(assembly, fit) => Some((assembly, fit)),
+                EpochJitterState::Error(assembly, err) => None,
+                _ => unreachable!(),
+            })
+            .collect()
+    }
+}
+
+impl<AJW> TrainingStrategy for WeightJitterStrat<AJW>
+where
+    AJW: Fn(f32, f32, f32) -> f32,
 {
     fn reset_training(&mut self) {
         self.curr_jitter_width = self.jitter_width;
     }
 
-    async fn epoch(&mut self, assembly: &mut AssemblyType, frame: &mut ATF) -> Result<f32, String> {
+    fn epoch<AssemblyType, FrameType, H1, H2>(
+        &mut self,
+        assembly: &mut AssemblyType,
+        frame: &mut FrameType,
+    ) -> Result<f32, String>
+    where
+        AssemblyType: Assembly + Clone,
+        FrameType: Frame<AssemblyType, ProdHandle = H1, TrainHandle = H2>,
+        H1: FrameHandle<AssemblyType>,
+        H2: FrameHandle<AssemblyType>,
+    {
         debug_assert!(self.num_jitters > 0);
         debug_assert!(self.jitter_width >= 0.0);
         debug_assert!(self.num_steps_per_epoch > 0);
         debug_assert!(self.step_factor >= 0.0);
 
-        let reference_wnb: AssemblyWnb = AssemblyWnb::from(&*assembly);
-        let reference_fitness = frame.run(assembly);
+        let (reference_wnb, reference_fitness) = self.get_reference(assembly, frame)?;
 
-        let mut new_wnb: AssemblyWnb = reference_wnb.clone();
-        // new_wnb.zero();
+        let mut state: EpochState<AssemblyType, H2> =
+            EpochState::init(assembly, self.num_jitters, self.curr_jitter_width);
 
-        let distrib = Normal::<f32>::new(0.0, self.curr_jitter_width).unwrap();
-        let mut jitter_results: Vec<(AssemblyWnb, f32)> =
-            vec![(reference_wnb.clone(), 0.0); self.num_jitters];
+        let results = state.results(frame);
 
-        for result in &mut jitter_results {
-            result.0.jitter(&distrib);
-        }
+        let results = results
+            .into_iter()
+            .filter_map(|x| x.ok())
+            .collect::<Vec<_>>();
 
-        let reference_fitness = reference_fitness.await.map_err(|ts| ts.to_string())?;
-
-        // Get fitnesses
-        for result in &mut jitter_results {
-            result.0.apply_to(assembly);
-
-            let fit = frame.run(assembly).await.map_err(|ts| ts.to_string())?;
-
-            let delta_fit = fit - reference_fitness;
-            result.1 += delta_fit;
-            result.1 /= self.num_steps_per_epoch as f32;
-        }
-
-        let min_fitness = jitter_results
+        let min_fitness = results
             .iter()
             .map(|x| x.1)
             .reduce(|ac, n| if ac < n { ac } else { n })
             .unwrap();
-        let max_fitness = jitter_results
+        let max_fitness = results
             .iter()
             .map(|x| x.1)
             .reduce(|ac, n| if ac > n { ac } else { n })
@@ -401,18 +554,20 @@ where
         let num_ok_jitters = if self.apply_bad_jitters {
             self.num_jitters
         } else {
-            jitter_results
+            results
                 .iter()
                 .map(|x| if x.1 > 0.0 { 1_usize } else { 0_usize })
                 .sum::<usize>()
         };
+
+        let mut new_wnb: AssemblyWnb = reference_wnb.clone();
 
         if num_ok_jitters > 0 {
             let step_factor = self.step_factor / num_ok_jitters as f32;
 
             // Normalize delta fitnesses and use them to weight jitter weights
             // and biases proportionately when applying them to the ref. net.
-            for (wnbs, fitness) in &mut jitter_results {
+            for (wnbs, fitness) in &mut results {
                 if self.apply_bad_jitters || *fitness > 0.0 {
                     let fitness_scale = (*fitness - min_fitness)
                         / if max_fitness == min_fitness {
@@ -431,7 +586,6 @@ where
 
             //println!("Applied {} jitters.", num_ok_jitters);
         } else {
-            new_wnb = reference_wnb.clone();
 
             //println!("Applied NO jitters.");
         }

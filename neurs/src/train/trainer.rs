@@ -2,7 +2,7 @@
  * Code for the Trainer, the orchestration structore of neural network
  * training.
  */
-use crate::prelude::{Assembly, SimpleFrame, TrainingStrategy};
+use crate::prelude::{Assembly, Frame, TrainingStrategy};
 
 /**
  * A struct which orchestrates the training process of a neural network.
@@ -12,8 +12,8 @@ use crate::prelude::{Assembly, SimpleFrame, TrainingStrategy};
  */
 pub struct Trainer<'a, AssemblyType, ATF, TS>
 where
-    AssemblyType: Assembly + Send,
-    ATF: SimpleFrame<AssemblyType>,
+    AssemblyType: Assembly,
+    ATF: Frame<AssemblyType>,
     TS: TrainingStrategy,
 {
     /**
@@ -36,8 +36,8 @@ where
 
 impl<'a, AssemblyType, ATF, TS> Trainer<'a, AssemblyType, ATF, TS>
 where
-    AssemblyType: Assembly + Send,
-    ATF: SimpleFrame<AssemblyType>,
+    AssemblyType: Assembly + Clone,
+    ATF: Frame<AssemblyType>,
     TS: TrainingStrategy,
 {
     /**

@@ -166,14 +166,20 @@ impl<T> SimpleFrame<NeuralClassifier> for LabeledLearningFrame<T>
 where
     T: TrainingLabel,
 {
-    fn run(&mut self, assembly: NeuralClassifier) -> (NeuralClassifier, Result<f32, String>) {
+    fn run(
+        &mut self,
+        assembly: NeuralClassifier,
+    ) -> Result<(NeuralClassifier, Result<f32, String>), (NeuralClassifier, String)> {
         let mut fitness = 0.0_f32;
         let mut outputs = vec![0.0_f32; T::num_labels()];
 
         for (case, desired_label) in &self.inputs {
             let desired_idx = desired_label.index() as usize;
 
-            assembly.classifier.compute_values(case, &mut outputs)?;
+            assembly
+                .classifier
+                .compute_values(case, &mut outputs)
+                .map_err(|error_string| (assembly, error_string))?;
 
             fitness -= outputs
                 .iter()
@@ -188,7 +194,7 @@ where
                 / outputs.len() as f32;
         }
 
-        Ok(assembly, fitness)
+        Ok((assembly, Ok(fitness)))
     }
 }
 

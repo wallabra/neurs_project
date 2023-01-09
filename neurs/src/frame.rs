@@ -22,11 +22,17 @@ where
 
     /// Performs a training run.
     /// Returns a handle.
-    fn start_train_run(&mut self, assembly: AssemblyType) -> Self::TrainHandle;
+    fn start_train_run(
+        &mut self,
+        assembly: AssemblyType,
+    ) -> Result<Self::TrainHandle, (AssemblyType, String)>;
 
     /// Performs a production run.
     /// Returns a handle.
-    fn start_run(&mut self, assembly: AssemblyType) -> Self::ProdHandle;
+    fn start_run(
+        &mut self,
+        assembly: AssemblyType,
+    ) -> Result<Self::ProdHandle, (AssemblyType, String)>;
 }
 
 /// A simple Frame where a result is produced immediately and synchronously.
@@ -40,11 +46,17 @@ where
     /// Run this frame for an <Assembly>.
     ///
     /// Returns a fitness value; if not applicable, just return zero.
-    fn run(&mut self, assembly: AssemblyType) -> (AssemblyType, Result<f32, String>);
+    fn run(
+        &mut self,
+        assembly: AssemblyType,
+    ) -> Result<(AssemblyType, Result<f32, String>), (AssemblyType, String)>;
 
-    fn _run_to_result(&mut self, assembly: AssemblyType) -> SimpleFrameHandle<AssemblyType> {
-        let (asembly, result) = self.run(assembly);
-        SimpleFrameHandle { assembly, result }
+    fn _run_to_result(
+        &mut self,
+        assembly: AssemblyType,
+    ) -> Result<SimpleFrameHandle<AssemblyType>, (AssemblyType, String)> {
+        let (assembly, result) = self.run(assembly)?;
+        Ok(SimpleFrameHandle { assembly, result })
     }
 }
 
@@ -66,7 +78,7 @@ impl<AssemblyType: Assembly> FrameHandle<AssemblyType> for SimpleFrameHandle<Ass
         self.assembly
     }
 
-    fn poll_state(&self) -> FrameRunState {
+    fn poll_state(&mut self) -> FrameRunState {
         use FrameRunState::*;
 
         if self.result.is_ok() {
@@ -93,11 +105,17 @@ where
         true
     }
 
-    fn start_train_run(&mut self, assembly: AssemblyType) -> SimpleFrameHandle<AssemblyType> {
+    fn start_train_run(
+        &mut self,
+        assembly: AssemblyType,
+    ) -> Result<SimpleFrameHandle<AssemblyType>, (AssemblyType, String)> {
         self._run_to_result(assembly)
     }
 
-    fn start_run(&mut self, assembly: AssemblyType) -> SimpleFrameHandle<AssemblyType> {
+    fn start_run(
+        &mut self,
+        assembly: AssemblyType,
+    ) -> Result<SimpleFrameHandle<AssemblyType>, (AssemblyType, String)> {
         self._run_to_result(assembly)
     }
 }
@@ -114,7 +132,7 @@ pub enum FrameRunState {
 
 impl FrameRunState {
     pub fn is_done(&self) -> bool {
-        matches!(self, Done) || matches!(self, Error)
+        matches!(self, Self::Done) || matches!(self, Self::Error(_))
     }
 }
 
@@ -133,7 +151,7 @@ where
     fn finish(self) -> AssemblyType;
 
     /// Polls the state of this handle.
-    fn poll_state(&self) -> FrameRunState;
+    fn poll_state(&mut self) -> FrameRunState;
 
     /// Get the fitness value of this run.
     /// Return 0 if not applicable.
@@ -151,7 +169,6 @@ where
     _phantom: PhantomData<AA>,
 }
 
-#[derive(Default)]
 pub struct HandleResult<AssemblyType>
 where
     AssemblyType: Assembly,
@@ -159,6 +176,19 @@ where
     state: FrameRunState,
     fitness: f32,
     returned_assembly: Option<AssemblyType>,
+}
+
+impl<AssemblyType> Default for HandleResult<AssemblyType>
+where
+    AssemblyType: Assembly,
+{
+    fn default() -> Self {
+        Self {
+            state: FrameRunState::Waiting,
+            fitness: 0.0,
+            returned_assembly: None,
+        }
+    }
 }
 
 impl<HandleType, AA> HandlePool<HandleType, AA>
@@ -171,36 +201,36 @@ where
     }
 
     fn poll_all(&mut self) -> Vec<HandleResult<AA>> {
-        let res = vec![HandleResult::default(); self.handles.len()];
+        let res: Vec<HandleResult<AA>> = vec![];
 
-        let res = self
-            .handles
+        for _ in 0..self.handles.len() {
+            res.push(HandleResult::default());
+        }
+
+        self.handles
             .iter()
             .zip(res.iter_mut())
-            .map(|(&handle, &mut res)| {
+            .for_each(|(&handle, &mut res)| {
                 let state = handle.poll_state();
                 res.state = state;
 
-                if matches!(state, Done) {
+                if matches!(state, FrameRunState::Done) {
                     res.fitness = handle.get_fitness();
                 }
             });
 
-        self.handles
-            .drain_filter(|&h| h.poll_state().is_done())
-            .zip(res.iter_mut())
-            .map(|(handle, &mut res)| {
-                if let handle = Some(handle) {
-                    res.returned_assembly = handle.finish();
-                }
-            });
+        self.handles.iter().zip(res.iter_mut()).for_each(
+            |(handle, item): (&HandleType, &mut HandleResult<AA>)| {
+                item.returned_assembly = Some(handle.finish());
+            },
+        );
+
+        self.handles.retain(|h| !h.poll_state().is_done());
 
         res
     }
 }
 
 pub mod prelude {
-    pub use super::{
-        Frame, FrameHandle, FrameRunState, HandlePool, HandleResult, SimpleFrame, SimpleFrameHandle,
-    };
+    pub use super::*;
 }

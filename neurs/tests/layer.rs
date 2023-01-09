@@ -5,7 +5,7 @@ mod tests {
 
     #[test]
     fn layer_output_makes_sense() {
-        let mut some_layer = NeuralLayer::new(4, 1, Some(activations::relu));
+        let mut some_layer = NeuralLayer::new(4, 1, Some(activations::fast_silu));
 
         let mut out_test: [f32; 1] = [0.0f32];
 

@@ -14,7 +14,6 @@ readme = "README.adoc"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-async-trait = "0.1.58"
 float_eq = "1.0.1"
 rand = "0.8.5"
 rand_distr = "0.4.3"

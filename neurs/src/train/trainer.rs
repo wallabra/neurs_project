@@ -2,19 +2,19 @@
  * Code for the Trainer, the orchestration structore of neural network
  * training.
  */
-use crate::prelude::{Assembly, AssemblyFrame, TrainingStrategy};
+use crate::prelude::{Assembly, SimpleFrame, TrainingStrategy};
 
 /**
  * A struct which orchestrates the training process of a neural network.
  *
- * Holds the state of training; a current network, a [TrainingFrame]
+ * Holds the state of training; a current network, a [SimpleFrame]
  * and a [TrainingStrategy].
  */
 pub struct Trainer<'a, AssemblyType, ATF, TS>
 where
     AssemblyType: Assembly + Send,
-    ATF: AssemblyFrame<AssemblyType>,
-    TS: TrainingStrategy<AssemblyType, ATF>,
+    ATF: SimpleFrame<AssemblyType>,
+    TS: TrainingStrategy,
 {
     /**
      * The current reference neural network of this trainer.
@@ -37,8 +37,8 @@ where
 impl<'a, AssemblyType, ATF, TS> Trainer<'a, AssemblyType, ATF, TS>
 where
     AssemblyType: Assembly + Send,
-    ATF: AssemblyFrame<AssemblyType>,
-    TS: TrainingStrategy<AssemblyType, ATF>,
+    ATF: SimpleFrame<AssemblyType>,
+    TS: TrainingStrategy,
 {
     /**
      * Refer to an existing assembly, and make it this trainer's reference one.
@@ -60,9 +60,8 @@ where
      *
      * Should return the best fitness arising from this epoch.
      */
-    pub async fn epoch(&mut self) -> Result<f32, String> {
+    pub fn epoch(&mut self) -> Result<f32, String> {
         self.strategy
             .epoch(self.reference_assembly, &mut self.frame)
-            .await
     }
 }

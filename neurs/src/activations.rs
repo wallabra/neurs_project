@@ -36,3 +36,34 @@ pub fn fast_sigmoid_signed(x: f32) -> f32 {
 pub fn fast_sigmoid(x: f32) -> f32 {
     0.5 * (x / (1.0 + x.abs()) + 1.0)
 }
+
+/// The original sigmoid activation function.
+///
+/// If precision is not required, use [fast_sigmoid] or [fast_sigmoid_signed].
+#[inline(always)]
+pub fn sigmoid(x: f32) -> f32 {
+    1.0 / (1.0 + -x.exp())
+}
+
+/// The SiLu (swish) function - x multiplied with its own sigmoid.
+///
+/// This uses the accurate [sigmoid] implementation from above. If performance is
+/// more important, use [fast_silu].
+#[inline(always)]
+pub fn silu(x: f32) -> f32 {
+    x * sigmoid(x)
+}
+
+/// The SiLu (swish) function - x multiplied with its own sigmoid.
+///
+/// This uses the quick and dirty [fast_sigmoid] implementatiom from above.
+#[inline(always)]
+pub fn fast_silu(x: f32) -> f32 {
+    x * fast_sigmoid(x)
+}
+
+/// Softplus - a smoother version of ReLu.
+#[inline(always)]
+pub fn softplus(x: f32) -> f32 {
+    (1 + x.exp()).log()
+}

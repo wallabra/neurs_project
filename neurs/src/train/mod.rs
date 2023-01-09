@@ -9,3 +9,10 @@ pub mod jitterstrat;
 pub mod label;
 pub mod prelude;
 pub mod trainer;
+
+pub mod prelude
+    pub use super::interface::*;
+    pub use super::jitterstrat::*;
+    pub use super::label::*;
+    pub use super::trainer::*;
+}
